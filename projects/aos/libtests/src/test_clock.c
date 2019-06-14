@@ -51,6 +51,8 @@ void verify_timer(uint32_t id, void * data){
         if (has_error ==false)
         {
             printf("Pass\n");
+        } else {
+            printf("Finish with some error.\n");
         }
         
         in_test = false;
