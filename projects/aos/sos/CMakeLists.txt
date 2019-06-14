@@ -80,6 +80,7 @@ target_link_libraries(
     picotcp_bsd
     nfs
     ethernet
+    tests
 )
 
 set_property(
