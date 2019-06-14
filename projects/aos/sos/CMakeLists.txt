@@ -14,6 +14,7 @@ project(sos C)
 set(configure_string "")
 
 config_string(SosNFSDir SOS_NFS_DIR "NFS directory" DEFAULT "/var/tftpboot/$ENV{USER}/")
+# config_string(SosNFSDir SOS_NFS_DIR "NFS directory" DEFAULT "/var/lib/tftpboot/$ENV{USER}/")
 
 config_string(SosNetMask SOS_NETMASK "Network mask" DEFAULT "255.255.255.0")
 

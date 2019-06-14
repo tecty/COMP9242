@@ -11,8 +11,8 @@
 #
 cmake_minimum_required(VERSION 3.7.2)
 
-project(libclock C)
+project(libadt C)
 
-add_library(clock EXCLUDE_FROM_ALL src/clock.c src/device.c)
-target_include_directories(clock PUBLIC include)
-target_link_libraries(clock Configuration muslc sel4 utils adt)
+add_library(adt EXCLUDE_FROM_ALL src/dynamic.c src/priority_q.c)
+target_include_directories(adt PUBLIC include)
+target_link_libraries(adt Configuration muslc sel4 utils)

@@ -11,8 +11,8 @@
 #
 cmake_minimum_required(VERSION 3.7.2)
 
-project(libclock C)
+project(libtests C)
 
-add_library(clock EXCLUDE_FROM_ALL src/clock.c src/device.c)
-target_include_directories(clock PUBLIC include)
-target_link_libraries(clock Configuration muslc sel4 utils adt)
+add_library(tests EXCLUDE_FROM_ALL src/test_clock.c)
+target_include_directories(tests PUBLIC include)
+target_link_libraries(tests Configuration clock serial muslc sel4 utils)

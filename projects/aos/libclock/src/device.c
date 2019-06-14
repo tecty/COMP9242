@@ -42,6 +42,8 @@ static timeout_info_t timeouts[] = {
 void configure_timestamp(volatile meson_timer_reg_t *regs, timestamp_timebase_t timebase)
 {
     uint32_t mux = regs->mux;
+    printf("mux pointer:%p\n", &(regs-> mux));
+
     mux &= ~(TIMESTAMP_TIMEBASE_MASK << TIMER_E_INPUT_CLK);
     mux |= timebase << TIMER_E_INPUT_CLK;
     regs->mux = mux;
@@ -54,20 +56,21 @@ uint64_t read_timestamp(volatile meson_timer_reg_t *timer)
     uint64_t lo = timer->timer_e;
     uint64_t hi = timer->timer_e_hi;
     COMPILER_MEMORY_FENCE();
+
     uint64_t new_lo = timer->timer_e;
     if (new_lo < lo) {
         lo = new_lo;
         hi = timer->timer_e_hi;
     }
-
     timestamp_t time = hi << 32;
     time |= lo & MASK(32);
     return time;
 }
 
-void configure_timeout(volatile meson_timer_reg_t *regs, timeout_id_t timer, bool enable, bool periodic,
-                       timeout_timebase_t timebase, uint16_t timeout)
-{
+void configure_timeout(
+    volatile meson_timer_reg_t *regs, timeout_id_t timer, bool enable,
+    bool periodic, timeout_timebase_t timebase, uint16_t timeout
+){
     assert(timer < ARRAY_SIZE(timeouts));
     timeout_info_t info = timeouts[timer];
 

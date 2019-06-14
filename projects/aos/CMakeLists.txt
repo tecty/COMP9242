@@ -43,6 +43,9 @@ add_subdirectory(libsel4cspace)
 add_subdirectory(libserial)
 add_subdirectory(libsosapi)
 # add any additional libs here
+add_subdirectory(libadt)
+add_subdirectory(libtests)
+
 
 # set the variables for the AOS platform
 set(KernelArch arm CACHE STRING "" FORCE)
@@ -67,7 +70,9 @@ ApplyData61ElfLoaderSettings(${KernelARMPlatform} ${KernelArmSel4Arch})
 set(KernelNumDomains 1 CACHE STRING "")
 
 # just 1 core
-set(KernelMaxNumNodes 1 CACHE STRING "")
+# set(KernelMaxNumNodes 1 CACHE STRING "")
+# I want more core to improve performance 
+set(KernelMaxNumNodes 4 CACHE STRING "")
 
 # turn on all the nice features for debugging
 # TODO for benchmarking, you should turn these OFF.

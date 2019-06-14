@@ -21,6 +21,7 @@
 #include <aos/debug.h>
 
 #include <clock/clock.h>
+#include <clock/device.h>
 #include <cpio/cpio.h>
 #include <elf/elf.h>
 #include <serial/serial.h>
@@ -38,6 +39,9 @@
 #include "tests.h"
 
 #include <aos/vsyscall.h>
+
+// register test 
+#include <tests/clock.h>
 
 /*
  * To differentiate between signals from notification objects and and IPC messages,
@@ -59,6 +63,13 @@
  * A dummy starting syscall
  */
 #define SOS_SYSCALL0 0
+#define SOS_WRITE 1
+
+/**
+ * How much juice I can get from ipc buff
+ */
+#define IPC_DATA_SIZE (seL4_MsgMaxLength -2) * sizeof(seL4_Word) 
+
 
 /* The linker will link this symbol to the start address  *
  * of an archive of attached applications.                */
@@ -87,9 +98,10 @@ static struct {
     seL4_CPtr stack;
 } tty_test_process;
 
+struct serial* serial_ptr;
+
 void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
 {
-
     /* allocate a slot for the reply cap */
     seL4_CPtr reply = cspace_alloc_slot(&cspace);
     /* get the first word of the message, which in the SOS protocol is the number
@@ -105,13 +117,13 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
      * slot is now empty. */
     seL4_Error err = cspace_save_reply_cap(&cspace, reply);
     ZF_LOGF_IFERR(err, "Failed to save reply");
-
+    seL4_MessageInfo_t reply_msg;
     /* Process system call */
     switch (syscall_number) {
     case SOS_SYSCALL0:
         ZF_LOGV("syscall: thread example made syscall 0!\n");
         /* construct a reply message of length 1 */
-        seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+        reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
         /* Set the first (and only) word in the message to 0 */
         seL4_SetMR(0, 0);
         /* Send the reply to the saved reply capability. */
@@ -120,12 +132,48 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
          * capability was consumed by the send. */
         cspace_free_slot(&cspace, reply);
         break;
+    case SOS_WRITE: ;
+        
+        // get the sent word 
+        seL4_Word* words   = &(seL4_GetIPCBuffer() -> msg[2]);
+        size_t len = seL4_GetMR(1);
+
+        if (len > IPC_DATA_SIZE)
+        {
+            // upperbound of the data I can get
+            len = IPC_DATA_SIZE;
+        }
+        
+        
+
+        // ret from pico sent 
+        // ret might be -1;
+        // return the error if any let userlevel deal with error 
+        int ret = serial_send(serial_ptr, (char *) words, len);
+
+        /* construct a reply message of length 1 */
+        reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+        /* Set the first (and only) word in the message to 0 */
+        seL4_SetMR(0, ret);
+        /* Send the reply to the saved reply capability. */
+        seL4_Send(reply, reply_msg);
+
+        // printf("recv %ld; send write %d \n", seL4_GetMR(1),ret);
+        // printf("I will wrote %ld \n", seL4_GetMR(2));
+
+        /* Free the slot we allocated for the reply - it is now empty, as the reply
+         * capability was consumed by the send. */
+        cspace_free_slot(&cspace, reply);
+
+        break;
 
     default:
         ZF_LOGE("Unknown syscall %lu\n", syscall_number);
         /* don't reply to an unknown syscall */
     }
 }
+
+
 
 NORETURN void syscall_loop(seL4_CPtr ep)
 {
@@ -518,12 +566,25 @@ NORETURN void *main_continued(UNUSED void *arg)
     start_timer(timer_vaddr);
     /* You will need to register an IRQ handler for the timer here.
      * See "irq.h". */
+    seL4_IRQHandler irqhandler;
+    seL4_Error error  = sos_register_irq_handler(
+        meson_timeout_irq(MESON_TIMER_A), true, timer_irq, MESON_TIMER_A, &irqhandler 
+    );
+    ZF_LOGF_IF(error, "Fail to register timer A");
 
     /* Start the user application */
     printf("Start first process\n");
     bool success = start_first_process(TTY_NAME, ipc_ep);
     ZF_LOGF_IF(!success, "Failed to start first process");
 
+    printf("\nInit the serial port\n");
+    serial_ptr = serial_init();
+
+    /* Delete here */
+    // register a test runner for this milestone 
+    register_test_callback(serial_ptr, timer_vaddr);
+
+    
     printf("\nSOS entering syscall loop\n");
     syscall_loop(ipc_ep);
 }

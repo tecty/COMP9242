@@ -112,3 +112,5 @@ tags
 cscope.out
 # Persistent undo
 [._]*.un~
+
+.vscode 

@@ -37,7 +37,7 @@ static void thread_block(void)
      * to sos -- it's 1 word long */
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 1);
     /* Set the first word in the message to 0 */
-    seL4_SetMR(0, 1);
+    seL4_SetMR(0, 10);
     /* Now send the ipc -- call will send the ipc, then block until a reply
      * message is received */
     seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
@@ -52,7 +52,92 @@ int main(void)
     ttyout_init();
 
     do {
-        printf("task:\tHello world, I'm\ttty_test!\n");
+        printf("task:\nHello world, I'm\ttty_test!\n");
+        printf("I'm Toby HUANG z5141448\n");
+        printf("Hi\n");
+
+        // printf(
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        //     "A very large chunck of dummy message!\n"
+        // );
+
+        
+        
+        
         thread_block();
         // sleep(1);    // Implement this as a syscall
     } while (1);

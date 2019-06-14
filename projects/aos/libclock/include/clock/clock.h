@@ -16,6 +16,8 @@
 #include <clock/device.h>
 #include <clock/timestamp.h>
 
+
+
 /*
  * Return codes for driver functions
  */
@@ -35,7 +37,7 @@ typedef void (*timer_callback_t)(uint32_t id, void *data);
  *                     registers
  * @return             CLOCK_R_OK iff successful.
  */
-int start_timer(unsigned char *timer_vaddr);
+int start_timer(void *timer_vaddr);
 
 /**
  * Get the current clock time in microseconds.
@@ -45,7 +47,7 @@ timestamp_t get_time(void);
 /**
  * Register a callback to be called after a given delay
  *
- * @param delay     Delay time in microseconds before callback is invoked
+ * @param delay     Delay time in microseconds before callback is invoked in us
  * @param callback  Function to be called
  * @param data      Custom data to be passed to callback function
  * @return          0 on failure, otherwise an unique ID for this timeout
