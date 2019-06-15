@@ -100,6 +100,16 @@ static struct {
 
 struct serial* serial_ptr;
 
+void main_timer_test_callback(UNUSED uint32_t id, UNUSED void * data){
+    printf("Now is %lu\n",get_time());
+}
+
+void main_timer_test(){
+    printf("Some large enough timer\n");
+    printf("Now is %lu\n",get_time());
+    register_timer(3000000, main_timer_test_callback, (void *)0);
+}
+
 void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
 {
     /* allocate a slot for the reply cap */
@@ -571,6 +581,9 @@ NORETURN void *main_continued(UNUSED void *arg)
         meson_timeout_irq(MESON_TIMER_A), true, timer_irq, MESON_TIMER_A, &irqhandler 
     );
     ZF_LOGF_IF(error, "Fail to register timer A");
+
+
+    main_timer_test();
 
     /* Start the user application */
     printf("Start first process\n");

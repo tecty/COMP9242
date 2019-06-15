@@ -173,6 +173,17 @@ void test_lots_timer(){
     }
 }
 
+void register100ms(uint32_t id, void * data){
+    printf("Now is %lu\n",get_time());
+    register_timer(100000, register100ms, (void *)0);
+}
+
+void test_regular_timer(){
+    printf("Reigster 100 ms regular\n");
+    in_test =false;
+    register_timer(100000, register100ms, (void *)0);
+}
+
 // register all the callbcak 
 test_callback_t test_arr[] = {
     test_10_timer,
@@ -183,7 +194,7 @@ test_callback_t test_arr[] = {
     test_timestamp_ms,
     test_restart_timer,
     test_lots_timer,
-    test_unimplement,
+    test_regular_timer,
     test_unimplement,
 };
 
