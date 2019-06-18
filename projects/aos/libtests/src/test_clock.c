@@ -68,8 +68,8 @@ void test_10_timer(){
     printf("Reigster Timer in Order\n");
     total_timer = 10;
     for (size_t i = 1; i <= total_timer; i++){
-        uint32_t id = (uint32_t) register_timer(500000*i, verify_timer, (void *)0);
-        expected_timout[id] = currTimestamp + (500000*i/ 1000);
+        uint32_t id = (uint32_t) register_timer(133000*i, verify_timer, (void *)0);
+        expected_timout[id] = currTimestamp + (133000*i/ 1000);
     }
     
 }
@@ -175,14 +175,43 @@ void test_lots_timer(){
 
 void register100ms(uint32_t id, void * data){
     printf("Now is %lu\n",get_time());
-    register_timer(100000, register100ms, (void *)0);
+    total_timer --;
+    uint64_t end_at = currTimestamp;
+
+
+    if (end_at != expected_timout[id])
+    {
+        dump_timer(end_at,id);
+    }
+    
+    if (total_timer > 0)
+    {
+        id = register_timer(100000, register100ms, (void *)0);
+        expected_timout[id] = currTimestamp + 100;
+    }
 }
 
 void test_regular_timer(){
     printf("Reigster 100 ms regular\n");
     in_test =false;
-    register_timer(100000, register100ms, (void *)0);
+    total_timer = 20;
+    size_t id =  register_timer(100000, register100ms, (void *)0);
+    expected_timout[id] = currTimestamp + 100;
 }
+
+void test_big_small_timer(){
+    printf("Register Big small timer with upto 50ms\n");
+    total_timer = 30;
+    for (size_t i = 1; i <= total_timer/3; i++){
+        uint32_t id = (uint32_t) register_timer(10000*i, verify_timer, (void *)2);
+        expected_timout[id] = currTimestamp + (10000*i/ 1000);
+        id = (uint32_t) register_timer(10000*i, verify_timer, (void *)2);
+        expected_timout[id] = currTimestamp + (10000*i/ 1000);
+        id = (uint32_t) register_timer(50000*i, verify_timer, (void *)2);
+        expected_timout[id] = currTimestamp + (50000*i/ 1000);
+    }
+}
+
 
 // register all the callbcak 
 test_callback_t test_arr[] = {
@@ -195,7 +224,7 @@ test_callback_t test_arr[] = {
     test_restart_timer,
     test_lots_timer,
     test_regular_timer,
-    test_unimplement,
+    test_big_small_timer,
 };
 
 
