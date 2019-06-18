@@ -18,10 +18,10 @@ static inline uint64_t abs_64(uint64_t a, uint64_t b){
 }
 
 static inline void dump_timer(uint64_t end_at, uint32_t id){
-    printf(
-        "%u-Now: %lu\tExp: %lu\t Var: %lu\n",
-        id,end_at, expected_timout[id], abs_64(end_at, expected_timout[id])
-    );
+    // printf(
+    //     "%u-Now: %lu\tExp: %lu\t Var: %lu\n",
+    //     id,end_at, expected_timout[id], abs_64(end_at, expected_timout[id])
+    // );
 }
 
 
@@ -44,6 +44,9 @@ void verify_timer(uint32_t id, void * data){
         has_error= true;
     }
     
+    // this timer has touch, disable it 
+    expected_timout[id] = -1;
+
     /**
      * Timer has verified
      */
@@ -174,7 +177,7 @@ void test_lots_timer(){
 }
 
 void register100ms(uint32_t id, void * data){
-    printf("Now is %lu\n",get_time());
+    printf("%u Now is %lu\n",id ,get_time());
     total_timer --;
     uint64_t end_at = currTimestamp;
 
@@ -187,6 +190,8 @@ void register100ms(uint32_t id, void * data){
     if (total_timer > 0)
     {
         id = register_timer(100000, register100ms, (void *)0);
+        // printf("registerd %u\n", id );
+
         expected_timout[id] = currTimestamp + 100;
     }
 }
@@ -194,8 +199,9 @@ void register100ms(uint32_t id, void * data){
 void test_regular_timer(){
     printf("Reigster 100 ms regular\n");
     in_test =false;
-    total_timer = 20;
+    total_timer += 20;
     size_t id =  register_timer(100000, register100ms, (void *)0);
+    printf("registerd %lu\n", id );
     expected_timout[id] = currTimestamp + 100;
 }
 

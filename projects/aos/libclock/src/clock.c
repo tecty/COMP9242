@@ -131,6 +131,7 @@ void switch_queue(uint32_t id, void * data){
             (size_t) PriorityQueue__pop(clock.timer_pq_curr)
         )
     ){
+
         timer_cleanup(in_curr_timer);
     }
     
@@ -214,6 +215,8 @@ void try_set_timer(){
         );
         suggest_timer = find_new_curr_timer()
     ){
+        // printf("array checking delete %lu\n",clock.curr_timer - 1);
+        
         // because the pop is the only way we can delete an element in pq
         // so we use permitive to delete here
         timer_cleanup(
@@ -222,10 +225,15 @@ void try_set_timer(){
             )
         );
     }
+    // printf("try to set up a timer %p\n", suggest_timer);
 
     /* no more timer to set */
     if (suggest_timer == NULL) return;
-    // printf("Compare: %lu, %lu\n",suggest_timer->end_stamp,currTimestamp - TOTAL_ADVANCE);
+    // printf(
+    //     "%lu: Compare: %lu, %lu\n",
+    //     suggest_timer->id,suggest_timer->end_stamp,
+    //     currTimestamp - TOTAL_ADVANCE
+    // );
 
 
     uint64_t gap = (suggest_timer-> end_stamp - TICK_ADVANCE - currTimestamp )/10;
@@ -248,6 +256,7 @@ void try_set_timer(){
 }
 
 uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data){
+
     // identify whether it's fake timer 
     if (delay <= TOTAL_ADVANCE)
     {
@@ -265,7 +274,8 @@ uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data){
     a_timer.enabled   = true;
     // add the things into ADT, and find the timer and decide which queue it goes to 
     size_t id = add_timer_helper(&a_timer);
-    
+
+
     // decide which pq it will go into 
     if (a_timer.end_stamp < currTimestamp)
     {
@@ -277,10 +287,10 @@ uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data){
     } else {
         PriorityQueue__add(clock.timer_pq_curr, (void *)id);
     }
-    
     try_set_timer();
-
     // printf("%lu\twant to end at %lu\n", id,get_timer_by_id(id)->end_stamp);
+    // printf("%lu\tis curr_timer \n", clock.curr_timer);
+
 
     return id;
 }
@@ -303,7 +313,6 @@ int timer_irq(
     seL4_IRQHandler irq_handler
 ){
     /* Acknowledge that the IRQ has been handled */
-    seL4_IRQHandler_Ack(irq_handler);
     /* Handle the IRQ */
     uint64_t timer_id = (uint64_t) data;
     switch (timer_id)
@@ -314,18 +323,27 @@ int timer_irq(
             <=
             currTimestamp + TICK_ADVANCE
         ){
-            // fast path
-            Timer_t curr= get_curr_timer();
-            curr->callback(curr->id,curr->data);
-            curr->enabled = false;
+            // // fast path
+            // printf(
+            //     "curr_id %lu, pq_first %lu \n",
+            //     clock.curr_timer,
+            //     (size_t) PriorityQueue__first(clock.timer_pq_curr)
+            // );
 
-            // this may take some times 
-            PriorityQueue__pop(clock.timer_pq_curr);
+            // get_curr_timer-> id == pq-> first 
+            Timer_t curr= get_curr_timer();
+            // disable it and let the try_set_timer to do the DT management
+            curr->enabled = false;
+            curr->callback(curr->id,curr->data);
         }
         break;
     }
 
+
     try_set_timer();
+
+
+    seL4_IRQHandler_Ack(irq_handler);
 
     return seL4_NoError;
 }

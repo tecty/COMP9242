@@ -54,12 +54,14 @@ size_t DynamicArr__add(DynamicArr_t da,void * data){
         
     }
 
+
     while (da->item_occupied[da->tail] == true)
     {
-        // printf("Find a place to alloc at %ld\n", da->tail);
+        // printf("%lu is occupied\n", da->tail);
         DynamicArr__incTail(da);
     }
 
+    // printf("Find a place to alloc at %ld\n", da->tail);
     da->alloced ++;
 
     // store the new item here 
@@ -67,7 +69,7 @@ size_t DynamicArr__add(DynamicArr_t da,void * data){
     // some routine to maintain the data intergity
     size_t ret = da->tail;
     da->item_occupied[ret] = true;
-    DynamicArr__incTail(da);
+    // DynamicArr__incTail(da);
     return ret;
 }
 
@@ -84,6 +86,7 @@ void DynamicArr__del(DynamicArr_t da, size_t index){
         da->item_occupied[index] = false;
         da->alloced --;
     } 
+    // printf("%lu/%lu deleted %lu\n", da->alloced, da->length , index);
 }
 
 void DynamicArr__free(DynamicArr_t da){
