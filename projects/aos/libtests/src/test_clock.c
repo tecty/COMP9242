@@ -18,10 +18,10 @@ static inline uint64_t abs_64(uint64_t a, uint64_t b){
 }
 
 static inline void dump_timer(uint64_t end_at, uint32_t id){
-    // printf(
-    //     "%u-Now: %lu\tExp: %lu\t Var: %lu\n",
-    //     id,end_at, expected_timout[id], abs_64(end_at, expected_timout[id])
-    // );
+    printf(
+        "%u-Now: %lu\tExp: %lu\t Var: %lu\n",
+        id,end_at, expected_timout[id], abs_64(end_at, expected_timout[id])
+    );
 }
 
 
