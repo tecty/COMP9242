@@ -40,8 +40,10 @@
 
 #include <aos/vsyscall.h>
 
+#include <adt/dynamicQ.h>
+
 // register test 
-#include <tests/clock.h>
+// #include <tests/clock.h>
 
 /*
  * To differentiate between signals from notification objects and and IPC messages,
@@ -99,16 +101,7 @@ static struct {
 } tty_test_process;
 
 struct serial* serial_ptr;
-
-// void main_timer_test_callback(UNUSED uint32_t id, UNUSED void * data){
-//     printf("Now is %lu\n",get_time());
-// }
-
-// void main_timer_test(){
-//     printf("Some large enough timer\n");
-//     printf("Now is %lu\n",get_time());
-//     register_timer(3000000, main_timer_test_callback, (void *)0);
-// }
+DynamicQ_t messageQ;
 
 void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
 {
@@ -192,7 +185,10 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         seL4_Word badge = 0;
         /* Block on ep, waiting for an IPC sent over ep, or
          * a notification from our bound notification object */
-        seL4_MessageInfo_t message = seL4_Recv(ep, &badge);
+        seL4_MessageInfo_t message;
+        
+        message = seL4_Recv(ep, &badge);
+        message = seL4_NBRecv(ep, &badge);
         /* Awake! We got a message - check the label and badge to
          * see what the message is about */
         seL4_Word label = seL4_MessageInfo_get_label(message);
@@ -604,7 +600,6 @@ NORETURN void *main_continued(UNUSED void *arg)
     ZF_LOGF_IF(error, "Fail to register timer A");
 
 
-    // main_timer_test();
 
     /* Start the user application */
     printf("Start first process\n");
@@ -613,12 +608,12 @@ NORETURN void *main_continued(UNUSED void *arg)
 
     printf("\nInit the serial port\n");
     serial_ptr = serial_init();
-
-    /* Delete here */
-    // register a test runner for this milestone 
-    register_test_callback(serial_ptr, timer_vaddr);
-
     
+    printf("init the Syscall Message Queue\n");
+    // all the syscall must only have 4 words long?
+    messageQ = DynamicQ__init(4*sizeof(seL4_Word));
+
+
     printf("\nSOS entering syscall loop\n");
     syscall_loop(ipc_ep);
 }

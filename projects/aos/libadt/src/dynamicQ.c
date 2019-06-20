@@ -1,4 +1,4 @@
-#include "dynamicQ.h"
+#include <adt/dynamicQ.h>
 
 
 typedef struct DynamicQ_s
