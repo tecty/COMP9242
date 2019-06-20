@@ -13,6 +13,6 @@ cmake_minimum_required(VERSION 3.7.2)
 
 project(libadt C)
 
-add_library(adt EXCLUDE_FROM_ALL src/dynamic.c src/priority_q.c)
+add_library(adt EXCLUDE_FROM_ALL src/dynamic.c src/priority_q.c src/dynamicQ.c)
 target_include_directories(adt PUBLIC include)
 target_link_libraries(adt Configuration muslc sel4 utils)
