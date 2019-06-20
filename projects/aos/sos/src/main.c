@@ -55,7 +55,7 @@
 #define IRQ_EP_BADGE         BIT(seL4_BadgeBits - 1ul)
 #define IRQ_IDENT_BADGE_BITS MASK(seL4_BadgeBits - 1ul)
 
-#define TTY_NAME             "tty_test"
+#define TTY_NAME             "sosh"
 #define TTY_PRIORITY         (0)
 #define TTY_EP_BADGE         (101)
 
@@ -100,15 +100,15 @@ static struct {
 
 struct serial* serial_ptr;
 
-void main_timer_test_callback(UNUSED uint32_t id, UNUSED void * data){
-    printf("Now is %lu\n",get_time());
-}
+// void main_timer_test_callback(UNUSED uint32_t id, UNUSED void * data){
+//     printf("Now is %lu\n",get_time());
+// }
 
-void main_timer_test(){
-    printf("Some large enough timer\n");
-    printf("Now is %lu\n",get_time());
-    register_timer(3000000, main_timer_test_callback, (void *)0);
-}
+// void main_timer_test(){
+//     printf("Some large enough timer\n");
+//     printf("Now is %lu\n",get_time());
+//     register_timer(3000000, main_timer_test_callback, (void *)0);
+// }
 
 void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
 {
@@ -257,15 +257,12 @@ static int stack_write(seL4_Word *mapped_stack, int index, uintptr_t val)
 static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, elf_t *elf_file)
 {
     /* Create a stack frame */
-    tty_test_process.stack_ut = alloc_retype(&tty_test_process.stack, seL4_ARM_SmallPageObject, seL4_PageBits);
-    if (tty_test_process.stack_ut == NULL) {
-        ZF_LOGE("Failed to allocate stack");
-        return 0;
-    }
+
 
     /* virtual addresses in the target process' address space */
     uintptr_t stack_top = PROCESS_STACK_TOP;
-    uintptr_t stack_bottom = PROCESS_STACK_TOP - PAGE_SIZE_4K;
+    // uintptr_t stack_bottom = PROCESS_STACK_TOP - PAGE_SIZE_4K;
+    uintptr_t stack_bottom = PROCESS_STACK_TOP ;
     /* virtual addresses in the SOS's address space */
     void *local_stack_top  = (seL4_Word *) SOS_SCRATCH;
     uintptr_t local_stack_bottom = SOS_SCRATCH - PAGE_SIZE_4K;
@@ -277,14 +274,36 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
         return 0;
     }
 
-    /* Map in the stack frame for the user app */
-    seL4_Error err = map_frame(cspace, tty_test_process.stack, tty_test_process.vspace, stack_bottom,
-                               seL4_AllRights, seL4_ARM_Default_VMAttributes);
-    if (err != 0) {
-        ZF_LOGE("Unable to map stack for user app");
-        return 0;
-    }
+    seL4_Error err;
 
+    for (size_t i = 0; i < 20; i++)
+    {
+        seL4_CPtr memcap;
+        tty_test_process.stack_ut = alloc_retype(
+            &memcap, seL4_ARM_SmallPageObject, seL4_PageBits
+        );
+        if (tty_test_process.stack_ut == NULL) {
+            ZF_LOGE("Failed to allocate stack");
+            return 0;
+        }
+
+        if (i == 0)
+        {
+            tty_test_process.stack = memcap;
+        }
+        stack_bottom -= PAGE_SIZE_4K;
+        
+        /* Map in the stack frame for the user app */
+        err = map_frame(
+            cspace, memcap, tty_test_process.vspace, stack_bottom,
+            seL4_AllRights, seL4_ARM_Default_VMAttributes
+        );
+        if (err != 0) {
+            ZF_LOGE("Unable to map stack for user app");
+            return 0;
+        }
+    }
+    
     /* allocate a slot to duplicate the stack frame cap so we can map it into our address space */
     seL4_CPtr local_stack_cptr = cspace_alloc_slot(cspace);
     if (local_stack_cptr == seL4_CapNull) {
@@ -366,8 +385,10 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
 bool start_first_process(char *app_name, seL4_CPtr ep)
 {
     /* Create a VSpace */
-    tty_test_process.vspace_ut = alloc_retype(&tty_test_process.vspace, seL4_ARM_PageGlobalDirectoryObject,
-                                              seL4_PGDBits);
+    tty_test_process.vspace_ut = alloc_retype(
+        &tty_test_process.vspace, seL4_ARM_PageGlobalDirectoryObject,
+        seL4_PGDBits
+    );
     if (tty_test_process.vspace_ut == NULL) {
         return false;
     }
@@ -583,7 +604,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     ZF_LOGF_IF(error, "Fail to register timer A");
 
 
-    main_timer_test();
+    // main_timer_test();
 
     /* Start the user application */
     printf("Start first process\n");
