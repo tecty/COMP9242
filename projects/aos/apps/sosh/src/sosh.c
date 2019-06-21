@@ -27,6 +27,16 @@
 
 #include "benchmark.h"
 
+/**
+ * Some syscall numbers 
+ */
+
+#define SOS_OPEN  1
+#define SOS_WRITE 2
+#define SOS_READ  3
+
+
+
 #define BUF_SIZ    6144
 #define MAX_ARGS   32
 #define SYSCALL_ENDPOINT_SLOT (1)
@@ -68,7 +78,7 @@ static size_t sos_write_words(seL4_Word * word, size_t len){
             wrote_slots + 2
         );
         /* Set the first word in the message to 0 */
-        seL4_SetMR(0, 1);
+        seL4_SetMR(0, SOS_WRITE);
         seL4_SetMR(1, len);
         // copy the message into the ipc buffer
         memcpy(
