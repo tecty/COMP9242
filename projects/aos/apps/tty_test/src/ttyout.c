@@ -46,7 +46,7 @@ static size_t sos_debug_print(const void *vData, size_t count)
     return count;
 }
 
-size_t sos_write_words(seL4_Word * word, size_t len){
+static size_t sos_write_words(seL4_Word * word, size_t len){
     //implement this to use your syscall
     // return sos_debug_print(vData, count);
     int ret = -1; 

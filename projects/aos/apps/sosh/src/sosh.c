@@ -29,7 +29,7 @@
 
 #define BUF_SIZ    6144
 #define MAX_ARGS   32
-
+#define SYSCALL_ENDPOINT_SLOT (1)
 static int in;
 static sos_stat_t sbuf;
 
@@ -45,11 +45,67 @@ static size_t sos_debug_print(const void *vData, size_t count)
     return count;
 }
 
+static size_t sos_write_words(seL4_Word * word, size_t len){
+    //implement this to use your syscall
+    // return sos_debug_print(vData, count);
+    int ret = -1; 
+    // limit trial 
+    size_t trial = 0;
+    // sizeof(seL4_Word) * (seL4_MsgMaxLength -2)
+    if (len > sizeof(seL4_Word) * (seL4_MsgMaxLength -2)){
+        len=  sizeof(seL4_Word) * (seL4_MsgMaxLength -2);
+    }
+
+    // how much slot I will occupied besides of headers 
+    size_t wrote_slots = 
+        (len + sizeof(seL4_Word) -1 ) / sizeof(seL4_Word)  ;
+
+    while ( ret == -1 && trial < 3){
+        /* deal with the hardware error in the user-mode */
+
+        seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0,
+            // slots will be occupied 
+            wrote_slots + 2
+        );
+        /* Set the first word in the message to 0 */
+        seL4_SetMR(0, 1);
+        seL4_SetMR(1, len);
+        // copy the message into the ipc buffer
+        memcpy(
+            &(seL4_GetIPCBuffer()->msg[2]), 
+            word,
+            len
+        );
+
+        /* Now send the ipc -- call will send the ipc, then block until a reply
+        * message is received */
+        seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+        
+        // update value after syscall 
+        ret= seL4_GetMR(0);
+
+        trial ++;
+    }
+    
+    // pretend nothing happend if trail > 3 
+    // we couldn't do anything 
+    return ret;
+}
 
 size_t sos_write(void *vData, size_t count)
 {
-    // use the content of tty test for this
-    return sos_debug_print(vData, count);
+    seL4_Word* words = vData;
+    size_t index = 0;
+    while( index  < count  ){
+        // send it word by word 
+        index  += sos_write_words(
+            &words[index/sizeof(seL4_Word)],
+            // how much bytes remains 
+            count - index 
+        );
+    }
+    
+    return count;
 }
 
 size_t sos_read(void *vData, size_t count)
@@ -317,6 +373,15 @@ struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
     {"benchmark", benchmark}
 };
 
+// int main(void){
+//     sosapi_init_syscall_table();
+//     int out = open("console", O_WRONLY);
+//     char buf[BUF_SIZ];
+
+//     read(out, buf, BUF_SIZ);
+    
+// }
+
 int main(void)
 {
     /* set up the c library. printf will not work before this is called */
@@ -327,8 +392,12 @@ int main(void)
     int i, r, done, found, new, argc;
     char *bp, *p;
 
-    in = open("console", O_RDONLY);
+    in = open("console", O_RDWR);
     assert(in >= 0);
+
+    printf("try to write to console");
+    write(3, "hello\n",6);
+
 
     bp = buf;
     done = 0;

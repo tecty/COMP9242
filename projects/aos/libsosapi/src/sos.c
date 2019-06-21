@@ -19,79 +19,79 @@
 
 int sos_sys_open(const char *path, fmode_t mode)
 {
-    assert(!"You need to implement this");
-    return -1;
+    // assert(!"You need to implement this sos_sys_open");
+    return 3;
 }
 
 int sos_sys_close(int file)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this sos_sys_close");
     return -1;
 }
 
 int sos_sys_read(int file, char *buf, size_t nbyte)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this sos_sys_read");
     return -1;
 }
 
 int sos_sys_write(int file, const char *buf, size_t nbyte)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this sos_sys_write");
     return -1;
 }
 
 int sos_getdirent(int pos, char *name, size_t nbyte)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this sos_getdirent");
     return -1;
 }
 
 int sos_stat(const char *path, sos_stat_t *buf)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this sos_stat");
     return -1;
 }
 
 pid_t sos_process_create(const char *path)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this t");
     return -1;
 }
 
 int sos_process_delete(pid_t pid)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this sos_process_delete");
     return -1;
 }
 
 pid_t sos_my_id(void)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this t");
     return -1;
 
 }
 
 int sos_process_status(sos_process_t *processes, unsigned max)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this sos_process_status");
     return -1;
 }
 
 pid_t sos_process_wait(pid_t pid)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this t");
     return -1;
 
 }
 
 void sos_sys_usleep(int msec)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this  sos_sys_usleep");
 }
 
 int64_t sos_sys_time_stamp(void)
 {
-    assert(!"You need to implement this");
+    assert(!"You need to implement this 4_t");
     return -1;
 }

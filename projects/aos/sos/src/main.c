@@ -37,6 +37,9 @@
 #include "elfload.h"
 #include "syscalls.h"
 #include "tests.h"
+#include "process.h"
+
+#include "syscallHandler.h"
 
 #include <aos/vsyscall.h>
 
@@ -57,7 +60,7 @@
 #define IRQ_EP_BADGE         BIT(seL4_BadgeBits - 1ul)
 #define IRQ_IDENT_BADGE_BITS MASK(seL4_BadgeBits - 1ul)
 
-#define TTY_NAME             "sosh"
+#define TTY_NAME             "tty_test"
 #define TTY_PRIORITY         (0)
 #define TTY_EP_BADGE         (101)
 
@@ -65,12 +68,7 @@
  * A dummy starting syscall
  */
 #define SOS_SYSCALL0 0
-#define SOS_WRITE 1
 
-/**
- * How much juice I can get from ipc buff
- */
-#define IPC_DATA_SIZE (seL4_MsgMaxLength -2) * sizeof(seL4_Word) 
 
 
 /* The linker will link this symbol to the start address  *
@@ -85,20 +83,8 @@ extern void (__register_frame)(void *);
 static cspace_t cspace;
 
 /* the one process we start */
-static struct {
-    ut_t *tcb_ut;
-    seL4_CPtr tcb;
-    ut_t *vspace_ut;
-    seL4_CPtr vspace;
 
-    ut_t *ipc_buffer_ut;
-    seL4_CPtr ipc_buffer;
-
-    cspace_t cspace;
-
-    ut_t *stack_ut;
-    seL4_CPtr stack;
-} tty_test_process;
+static struct tcb tty_test_process;
 
 struct serial* serial_ptr;
 DynamicQ_t messageQ;
@@ -147,8 +133,6 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
             len = IPC_DATA_SIZE;
         }
         
-        
-
         // ret from pico sent 
         // ret might be -1;
         // return the error if any let userlevel deal with error 
@@ -169,7 +153,6 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
         cspace_free_slot(&cspace, reply);
 
         break;
-
     default:
         ZF_LOGE("Unknown syscall %lu\n", syscall_number);
         /* don't reply to an unknown syscall */
@@ -188,7 +171,7 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         seL4_MessageInfo_t message;
         
         message = seL4_Recv(ep, &badge);
-        message = seL4_NBRecv(ep, &badge);
+        // message = seL4_NBRecv(ep, &badge);
         /* Awake! We got a message - check the label and badge to
          * see what the message is about */
         seL4_Word label = seL4_MessageInfo_get_label(message);
@@ -612,6 +595,9 @@ NORETURN void *main_continued(UNUSED void *arg)
     printf("init the Syscall Message Queue\n");
     // all the syscall must only have 4 words long?
     messageQ = DynamicQ__init(4*sizeof(seL4_Word));
+
+    // init the syscall table and routine 
+    syscallHandler__init(&cspace,serial_ptr);
 
 
     printf("\nSOS entering syscall loop\n");
