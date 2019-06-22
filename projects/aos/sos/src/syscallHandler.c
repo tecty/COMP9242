@@ -13,7 +13,7 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
 
 static void __syscall_write(syscallMessage_t msg){
     // get the sent word 
-    size_t len = seL4_GetMR(1);
+    size_t len = msg->words[0];
 
     // upperbound of the data I can get
     if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
@@ -31,10 +31,6 @@ static void __syscall_write(syscallMessage_t msg){
     seL4_SetMR(0, ret);
     /* Send the reply to the saved reply capability. */
     seL4_Send(msg->replyCap, reply_msg);
-
-    /* Free the slot we allocated for the reply - it is now empty, as the reply
-    * capability was consumed by the send. */
-    cspace_free_slot(rootCspace, msg->replyCap);
 }
 
 void syscallHandler__init(cspace_t *cspace){
@@ -50,4 +46,10 @@ void syscallHandler__init(cspace_t *cspace){
 
 void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg){
     handles[syscall_num](msg);
+    if(handles[syscall_num] == unimplemented_syscall){
+        printf("This process will halt forever for %lu\n", syscall_num);
+    }
+    /* Free the slot we allocated for the reply - it is now empty, as the reply
+    * capability was consumed by the send. */
+    cspace_free_slot(rootCspace, msg->replyCap);
 }

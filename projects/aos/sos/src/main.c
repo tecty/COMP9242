@@ -89,23 +89,19 @@ static struct tcb tty_test_process;
 struct serial* serial_ptr;
 DynamicQ_t messageQ;
 
+
+/**
+ * We might use badge as proc id?
+ * Badge is a unforgeable id, So I can trust it can be unique 
+ * Then the reply cap will not be free forever (To save time)
+ */
 void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
 {
     /* allocate a slot for the reply cap */
     seL4_CPtr reply = cspace_alloc_slot(&cspace);
-    /* get the first word of the message, which in the SOS protocol is the number
-     * of the SOS "syscall". */
-    seL4_Word syscall_number = seL4_GetMR(0);
-    /* Save the reply capability of the caller. If we didn't do this,
-     * we coud just use seL4_Reply to respond directly to the reply capability.
-     * However if SOS were to block (seL4_Recv) to receive another message, then
-     * the existing reply capability would be deleted. So we save the reply capability
-     * here, as in future you will want to reply to it later. Note that after
-     * saving the reply capability, seL4_Reply cannot be used, as the reply capability
-     * is moved from the internal slot in the TCB to our cspace, and the internal
-     * slot is now empty. */
     seL4_Error err = cspace_save_reply_cap(&cspace, reply);
     ZF_LOGF_IFERR(err, "Failed to save reply");
+
 
     // construct the unify structure to call to handler 
     struct syscallMessage_s msg;
