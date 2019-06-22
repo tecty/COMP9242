@@ -37,8 +37,9 @@
 #include "elfload.h"
 #include "syscalls.h"
 #include "tests.h"
-#include "process.h"
 
+#include "drivers/serial.h"
+#include "process.h"
 #include "syscallHandler.h"
 
 #include <aos/vsyscall.h>
@@ -123,7 +124,6 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
     case SOS_WRITE: ;
         
         // get the sent word 
-        seL4_Word* words   = (void *) tty_test_process.share_buffer_vaddr;
         size_t len = seL4_GetMR(1);
 
         // upperbound of the data I can get
@@ -132,7 +132,9 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
         // ret from pico sent 
         // ret might be -1;
         // return the error if any let userlevel deal with error 
-        int ret = serial_send(serial_ptr, (char *) words, len);
+        int ret = DriverSerial__write(
+            tty_test_process.share_buffer_vaddr, len
+        );
 
         /* construct a reply message of length 1 */
         reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
@@ -140,9 +142,6 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
         seL4_SetMR(0, ret);
         /* Send the reply to the saved reply capability. */
         seL4_Send(reply, reply_msg);
-
-        // printf("recv %ld; send write %d \n", seL4_GetMR(1),ret);
-        // printf("I will wrote %ld \n", seL4_GetMR(2));
 
         /* Free the slot we allocated for the reply - it is now empty, as the reply
          * capability was consumed by the send. */
@@ -613,6 +612,8 @@ NORETURN void *main_continued(UNUSED void *arg)
     printf("Network init\n");
     network_init(&cspace, timer_vaddr);
 
+    DriverSerial__init();
+
     /* Initialises the timer */
     printf("Timer init\n");
     start_timer(timer_vaddr);
@@ -624,15 +625,13 @@ NORETURN void *main_continued(UNUSED void *arg)
     );
     ZF_LOGF_IF(error, "Fail to register timer A");
 
-
+    
 
     /* Start the user application */
     printf("Start first process\n");
     bool success = start_first_process(TTY_NAME, ipc_ep);
     ZF_LOGF_IF(!success, "Failed to start first process");
 
-    printf("\nInit the serial port\n");
-    serial_ptr = serial_init();
     
     printf("init the Syscall Message Queue\n");
     // all the syscall must only have 4 words long?
