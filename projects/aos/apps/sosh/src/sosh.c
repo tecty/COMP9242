@@ -35,7 +35,8 @@
 #define SOS_WRITE 2
 #define SOS_READ  3
 
-
+#define SHARE_BUF_VADDR (0xA0001000)
+#define PAGE_SIZE_4K (0x1000)
 
 #define BUF_SIZ    6144
 #define MAX_ARGS   32
@@ -61,28 +62,19 @@ static size_t sos_write_words(seL4_Word * word, size_t len){
     int ret = -1; 
     // limit trial 
     size_t trial = 0;
-    // sizeof(seL4_Word) * (seL4_MsgMaxLength -2)
-    if (len > sizeof(seL4_Word) * (seL4_MsgMaxLength -2)){
-        len=  sizeof(seL4_Word) * (seL4_MsgMaxLength -2);
-    }
+    // len now is cap to PAGE_SIZE_4K
+    if (len > PAGE_SIZE_4K) len=  PAGE_SIZE_4K;
 
-    // how much slot I will occupied besides of headers 
-    size_t wrote_slots = 
-        (len + sizeof(seL4_Word) -1 ) / sizeof(seL4_Word)  ;
-
+    
     while ( ret == -1 && trial < 3){
         /* deal with the hardware error in the user-mode */
-
-        seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0,
-            // slots will be occupied 
-            wrote_slots + 2
-        );
+        seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 2);
         /* Set the first word in the message to 0 */
         seL4_SetMR(0, SOS_WRITE);
         seL4_SetMR(1, len);
         // copy the message into the ipc buffer
         memcpy(
-            &(seL4_GetIPCBuffer()->msg[2]), 
+            (void *) SHARE_BUF_VADDR, 
             word,
             len
         );

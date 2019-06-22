@@ -12,6 +12,7 @@
 #
 set -e
 
+cd build
 ninja
 TFTPROOT=/var/lib/tftpboot/
 SERIAL_PORT=/dev/ttyUSB0

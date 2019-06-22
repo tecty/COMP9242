@@ -123,14 +123,11 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
     case SOS_WRITE: ;
         
         // get the sent word 
-        seL4_Word* words   = &(seL4_GetIPCBuffer() -> msg[2]);
+        seL4_Word* words   = (void *) tty_test_process.share_buffer_vaddr;
         size_t len = seL4_GetMR(1);
 
-        if (len > IPC_DATA_SIZE)
-        {
-            // upperbound of the data I can get
-            len = IPC_DATA_SIZE;
-        }
+        // upperbound of the data I can get
+        if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
         
         // ret from pico sent 
         // ret might be -1;
@@ -271,18 +268,31 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
         ZF_LOGE("Unable to share buff for user app");
         return 0;
     }
-    
+    /* Map the fram into sos addr space */
+    // protential cspace leak, let the vm to handle this 
+    seL4_CPtr local_share_buff_cptr = cspace_alloc_slot(cspace);
+
+    err = cspace_copy(
+        cspace, local_share_buff_cptr, cspace,
+        tty_test_process.share_buffer, seL4_AllRights);
+    if (err != seL4_NoError) {
+        cspace_free_slot(cspace, local_share_buff_cptr);
+        ZF_LOGE("Failed to copy cap");
+        return 0;
+    }
+
     tty_test_process.share_buffer_vaddr = get_new_share_buff_vaddr();
     err = map_frame(
-        cspace, tty_test_process.share_buffer, local_vspace,
+        cspace, local_share_buff_cptr, local_vspace,
         (seL4_Word) tty_test_process.share_buffer_vaddr, seL4_AllRights,
         seL4_ARM_Default_VMAttributes);
-    // if (err != seL4_NoError) {
-    //     ZF_LOGE("Unable to map share buff to sos vaddr");
-    //     cspace_delete(cspace, tty_test_process.share_buffer);
-    //     cspace_free_slot(cspace, tty_test_process.share_buffer);
-    //     return 0;
-    // }
+    printf("share Buff vaddr %p\n", tty_test_process.share_buffer_vaddr);
+    if (err != seL4_NoError) {
+        ZF_LOGE("\n\n\nUnable to map share buff to sos vaddr");
+        cspace_delete(cspace, local_share_buff_cptr);
+        cspace_free_slot(cspace, local_share_buff_cptr);
+        return 0;
+    }
 
 
 
