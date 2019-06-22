@@ -83,7 +83,6 @@ extern void (__register_frame)(void *);
 static cspace_t cspace;
 
 /* the one process we start */
-
 static struct tcb tty_test_process;
 
 struct serial* serial_ptr;
@@ -255,9 +254,42 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
 
     seL4_Error err;
 
+    /* Map the frame to tty's addr and sos's addr  */
+    tty_test_process.share_buffer_ut = alloc_retype(
+        &tty_test_process.share_buffer, seL4_ARM_SmallPageObject,seL4_PageBits
+    );
+    if (tty_test_process.share_buffer_ut == NULL) {
+        ZF_LOGE("Failed to alloc share buffer ut");
+        return false;
+    }
+    err = map_frame(
+        cspace, tty_test_process.share_buffer, tty_test_process.vspace, 
+        PROCESS_IPC_BUFFER + PAGE_SIZE_4K, seL4_AllRights,
+        seL4_ARM_Default_VMAttributes
+    );
+    if (err != 0) {
+        ZF_LOGE("Unable to share buff for user app");
+        return 0;
+    }
+    
+    tty_test_process.share_buffer_vaddr = get_new_share_buff_vaddr();
+    err = map_frame(
+        cspace, tty_test_process.share_buffer, local_vspace,
+        (seL4_Word) tty_test_process.share_buffer_vaddr, seL4_AllRights,
+        seL4_ARM_Default_VMAttributes);
+    // if (err != seL4_NoError) {
+    //     ZF_LOGE("Unable to map share buff to sos vaddr");
+    //     cspace_delete(cspace, tty_test_process.share_buffer);
+    //     cspace_free_slot(cspace, tty_test_process.share_buffer);
+    //     return 0;
+    // }
+
+
+
     for (size_t i = 0; i < 20; i++)
     {
         seL4_CPtr memcap;
+
         tty_test_process.stack_ut = alloc_retype(
             &memcap, seL4_ARM_SmallPageObject, seL4_PageBits
         );
