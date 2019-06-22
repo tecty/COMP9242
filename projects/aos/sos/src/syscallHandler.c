@@ -11,6 +11,30 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
 }
 
 
+static void __syscall_open(syscallMessage_t msg){
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+    printf("try to invoke the open \n");
+    // make sure it won't overflow 
+    ((char *)msg->tcb->share_buffer_vaddr)[1023] ='\0';
+    if (strcmp(msg->tcb->share_buffer_vaddr,"console") ==0){
+        // TODO: in filesys milestone
+        // return 3
+        seL4_SetMR(0, 3);
+    }
+    else {
+        seL4_SetMR(0,-1);
+    }
+
+    // return 
+    seL4_Send(msg->replyCap, reply_msg);    
+}
+
+static void __syscall_read(UNUSED syscallMessage_t msg){
+    uint64_t len = msg -> words[0];
+    if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
+
+    // not return now
+}
 
 static void __syscall_write(syscallMessage_t msg){
     // get the sent word 
@@ -34,6 +58,8 @@ static void __syscall_write(syscallMessage_t msg){
     seL4_Send(msg->replyCap, reply_msg);
 }
 
+
+
 void syscallHandler__init(cspace_t *cspace){
     rootCspace = cspace;
     for (size_t i = 0; i < SYSCALL_MAX; i++){
@@ -43,6 +69,8 @@ void syscallHandler__init(cspace_t *cspace){
     
     /* Register implemented syscalls here */
     handles[SOS_WRITE] = __syscall_write;
+    handles[SOS_OPEN]  = __syscall_open;
+    handles[SOS_READ]  = __syscall_read;
 }
 
 void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg){

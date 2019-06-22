@@ -17,10 +17,27 @@
 
 #include <sel4/sel4.h>
 
+/**
+ * Some syscall numbers 
+ */
+
+#define SOS_OPEN  1
+#define SOS_WRITE 2
+#define SOS_READ  3
+
+#define SHARE_BUF_VADDR (0xA0001000)
+#define PAGE_SIZE_4K (0x1000)
+
+
 int sos_sys_open(const char *path, fmode_t mode)
 {
-    // assert(!"You need to implement this sos_sys_open");
-    return 3;
+    seL4_MessageInfo_t msg = seL4_MessageInfo_new(0, 0, 0, 2);
+    // call 
+    seL4_SetMR(0,SOS_OPEN);
+    seL4_SetMR(1,mode);
+    strncpy((char *) SHARE_BUF_VADDR,path, 0x1000);
+    seL4_Call(1, msg);
+    return seL4_GetMR(0);
 }
 
 int sos_sys_close(int file)
@@ -31,8 +48,12 @@ int sos_sys_close(int file)
 
 int sos_sys_read(int file, char *buf, size_t nbyte)
 {
-    assert(!"You need to implement this sos_sys_read");
-    return -1;
+    seL4_MessageInfo_t msg = seL4_MessageInfo_new(0, 0, 0, 2);
+    // call 
+    seL4_SetMR(0,SOS_READ);
+    seL4_SetMR(1,nbyte);
+    seL4_Call(1, msg);
+    return seL4_GetMR(0);
 }
 
 int sos_sys_write(int file, const char *buf, size_t nbyte)

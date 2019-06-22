@@ -112,7 +112,6 @@ NORETURN void syscall_loop(seL4_CPtr ep)
                 message = seL4_Recv(ep, &badge);
                 label = seL4_MessageInfo_get_label(message);
             }
-            
         }
 
         /* Awake! We got a message - check the label and badge to
