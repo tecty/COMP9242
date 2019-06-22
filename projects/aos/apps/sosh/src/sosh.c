@@ -418,6 +418,8 @@ int main(void)
             /* Make sure to flush so anything is visible while waiting for user input */
             fflush(stdout);
             r = read(in, bp, BUF_SIZ - 1 + buf - bp);
+
+            printf("I ahve read %s\n", bp);
             if (r < 0) {
                 printf("Console read failed!\n");
                 done = 1;

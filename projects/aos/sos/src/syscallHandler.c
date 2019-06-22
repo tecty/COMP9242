@@ -29,11 +29,20 @@ static void __syscall_open(syscallMessage_t msg){
     seL4_Send(msg->replyCap, reply_msg);    
 }
 
-static void __syscall_read(UNUSED syscallMessage_t msg){
+void __syscall_read_callback(uint64_t len, void * data){
+    syscallMessage_t msg = (syscallMessage_t) data;    
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
+    seL4_SetMR(0, len);
+
+    seL4_Send(msg->replyCap, reply_msg);
+    // finish it by calling a callback 
+    syscallEvents__finish(msg->event_id);
+}
+
+static void __syscall_read(syscallMessage_t msg){
     uint64_t len = msg -> words[0];
     if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
-
-    // not return now
+    DriverSerial__read(msg->tcb->share_buffer_vaddr, len, msg, __syscall_read_callback);
 }
 
 static void __syscall_write(syscallMessage_t msg){
@@ -56,6 +65,8 @@ static void __syscall_write(syscallMessage_t msg){
     seL4_SetMR(0, ret);
     /* Send the reply to the saved reply capability. */
     seL4_Send(msg->replyCap, reply_msg);
+    // finish it by calling a callback 
+    syscallEvents__finish(msg->event_id);
 }
 
 
@@ -75,8 +86,7 @@ void syscallHandler__init(cspace_t *cspace){
 
 void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg){
     handles[syscall_num](msg);
-    // finish it by calling a callback 
-    syscallEvents__finish(msg->event_id);
+
     if(handles[syscall_num] == unimplemented_syscall){
         printf("This process will halt forever for %lu\n", syscall_num);
     }

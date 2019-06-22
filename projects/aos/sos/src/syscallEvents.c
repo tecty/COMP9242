@@ -83,25 +83,13 @@ void syscallEvents__enQueue(UNUSED seL4_Word badge, UNUSED int num_args){
     event.msg.words[2] = seL4_GetMR(3);
     // fast path
     event.msg.event_id = 0;
-    
-    if (
-        likely(
-            // fast path disable
-            // 0 && 
-            syscallEvents__isEmpty()
-        )
-    ){
-        /* fast path apply */
-        syscallHandler__handle(seL4_GetMR(0), &(event.msg));
-    }
-    else {
-        /* DT enqueue save it for later*/
-        size_t event_id = DynamicArr__add(sysEvent.messageArr, &event);
-        syscallEvent_t event_ptr = DynamicArr__get(sysEvent.messageArr, event_id );
-        event_ptr ->msg.event_id = event_id + 1;
-        // printf("I have eid %lu\n", event_ptr ->msg.event_id );
-        // now I can use dequeue to run the syscall 
-        // never dequeue, dequeue is decided by upper layer
-        DynamicQ__enQueue(sysEvent.messageQ, &event_ptr->msg.event_id);
-    }
+
+    /* DT enqueue save it for later*/
+    size_t event_id = DynamicArr__add(sysEvent.messageArr, &event);
+    syscallEvent_t event_ptr = DynamicArr__get(sysEvent.messageArr, event_id );
+    event_ptr ->msg.event_id = event_id + 1;
+    // printf("I have eid %lu\n", event_ptr ->msg.event_id );
+    // now I can use dequeue to run the syscall 
+    // never dequeue, dequeue is decided by upper layer
+    DynamicQ__enQueue(sysEvent.messageQ, &event_ptr->msg.event_id);
 }
