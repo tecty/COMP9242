@@ -11,4 +11,7 @@
  */
 struct serial *serial_init(void);
 int serial_send(struct serial *serial, char *data, int len);
-int serial_register_handler(struct serial *serial, void (*handler)(struct serial *serial, char c));
+int serial_register_handler(
+    struct serial *serial, void * buf, int buf_len,
+    void (*handler)(struct serial *serial, int len)
+);

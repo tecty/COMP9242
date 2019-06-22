@@ -25,12 +25,13 @@
 struct serial {
     struct pico_ip4 inaddr_any;
     struct pico_socket *pico_socket;
-    void (*handler)(struct serial *serial, char c);
+    void * buf;
+    uint64_t buf_len;
+    void (*handler)(struct serial *serial, int len);
     uint32_t peer;
     uint16_t port;
 };
 
-char buf[MAX_PAYLOAD_SIZE];
 static struct serial serial = {};
 
 static void serial_recv_handler(uint16_t ev, struct pico_socket *s)
@@ -38,10 +39,12 @@ static void serial_recv_handler(uint16_t ev, struct pico_socket *s)
     if (ev == PICO_SOCK_EV_RD) {
         int read = 0;
         do {
-            read = pico_socket_recvfrom(serial.pico_socket, buf, MAX_PAYLOAD_SIZE, &serial.peer, &serial.port);
-            for (int i = 0; i < read; i++) {
-                serial.handler(&serial, buf[i]);
-            }
+            read = pico_socket_recvfrom(
+                serial.pico_socket, serial.buf,
+                serial.buf_len, &serial.peer, &serial.port
+            );
+            // I trust the handler will update a new buffer 
+            serial.handler(&serial,read);
         } while (read > 0);
     } else if (ev == PICO_SOCK_EV_ERR) {
         ZF_LOGE("Pico recv error");
@@ -98,9 +101,12 @@ int serial_send(struct serial *serial, char *data, int len)
     return len;
 }
 
-int serial_register_handler(struct serial *serial,
-                            void (*handler)(struct serial *serial, char c))
-{
+int serial_register_handler(
+    struct serial *serial, void * buf, int buf_len,
+    void (*handler)(struct serial *serial, int len)
+){
     serial->handler = handler;
+    serial->buf_len = buf_len;
+    serial->buf     = buf;
     return 0;
 }
