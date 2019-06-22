@@ -18,6 +18,7 @@ struct syscallMessage_s
     // first is syscall, so we only need to trap three MR 
     seL4_Word words[3];
     tcb_t tcb;
+    uint64_t event_id;
 };
 
 typedef struct syscallMessage_s * syscallMessage_t;

@@ -105,9 +105,6 @@ NORETURN void syscall_loop(seL4_CPtr ep)
             message = seL4_Recv(ep, &badge);
             label = seL4_MessageInfo_get_label(message);
         }
-        
-        printf("2I have a badage here %lu\n", badge);
-        
 
         /* Awake! We got a message - check the label and badge to
          * see what the message is about */

@@ -1,5 +1,6 @@
 #include "syscallHandler.h"
 #include "drivers/serial.h"
+#include "syscallEvents.h"
 
 // basic elements for handleing syscalls 
 static cspace_t * rootCspace;
@@ -46,6 +47,8 @@ void syscallHandler__init(cspace_t *cspace){
 
 void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg){
     handles[syscall_num](msg);
+    // finish it by calling a callback 
+    syscallEvents__finish(msg->event_id);
     if(handles[syscall_num] == unimplemented_syscall){
         printf("This process will halt forever for %lu\n", syscall_num);
     }
