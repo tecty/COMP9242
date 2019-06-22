@@ -101,9 +101,18 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         label = seL4_MessageInfo_get_label(message);
         if (badge == 0)
         {
-            /* Block the sos for performance  */
-            message = seL4_Recv(ep, &badge);
-            label = seL4_MessageInfo_get_label(message);
+            if (! syscallEvents__isEmpty())
+            {
+                /* I finally can clean up my stack */
+                // printf("dequeueing the event queue\n");
+                syscallEvents__deQueue();
+                continue;                
+            }else {
+                /* Block the sos for performance  */
+                message = seL4_Recv(ep, &badge);
+                label = seL4_MessageInfo_get_label(message);
+            }
+            
         }
 
         /* Awake! We got a message - check the label and badge to

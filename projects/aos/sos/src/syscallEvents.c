@@ -84,8 +84,13 @@ void syscallEvents__enQueue(UNUSED seL4_Word badge, UNUSED int num_args){
     // fast path
     event.msg.event_id = 0;
     
-    if (syscallEvents__isEmpty())
-    {
+    if (
+        likely(
+            // fast path disable
+            // 0 && 
+            syscallEvents__isEmpty()
+        )
+    ){
         /* fast path apply */
         syscallHandler__handle(seL4_GetMR(0), &(event.msg));
     }
@@ -98,6 +103,5 @@ void syscallEvents__enQueue(UNUSED seL4_Word badge, UNUSED int num_args){
         // now I can use dequeue to run the syscall 
         // never dequeue, dequeue is decided by upper layer
         DynamicQ__enQueue(sysEvent.messageQ, &event_ptr->msg.event_id);
-
     }
 }
