@@ -1,9 +1,9 @@
 #include "syscallHandler.h"
+#include "drivers/serial.h"
 
 // basic elements for handleing syscalls 
 static cspace_t * rootCspace;
 static syscall_handles_t handles[SYSCALL_MAX];
-static struct serial* serial_ptr;
 
 void unimplemented_syscall(UNUSED syscallMessage_t msg){
     printf("Unkown Syscall\n");
@@ -13,18 +13,17 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
 
 static void __syscall_write(syscallMessage_t msg){
     // get the sent word 
-    seL4_Word* words   = &(seL4_GetIPCBuffer() -> msg[2]);
     size_t len = seL4_GetMR(1);
 
-    if (len > IPC_DATA_SIZE)
-    {
-        // upperbound of the data I can get
-        len = IPC_DATA_SIZE;
-    }
-    
-    // use device driver to print 
+    // upperbound of the data I can get
+    if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
+
+    // ret from pico sent 
+    // ret might be -1;
     // return the error if any let userlevel deal with error 
-    int ret = serial_send(serial_ptr, (char *) words, len);
+    int ret = DriverSerial__write(
+        msg -> tcb ->share_buffer_vaddr, len
+    );
 
     /* construct a reply message of length 1 */
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
@@ -33,17 +32,13 @@ static void __syscall_write(syscallMessage_t msg){
     /* Send the reply to the saved reply capability. */
     seL4_Send(msg->replyCap, reply_msg);
 
-
     /* Free the slot we allocated for the reply - it is now empty, as the reply
-        * capability was consumed by the send. */
+    * capability was consumed by the send. */
     cspace_free_slot(rootCspace, msg->replyCap);
 }
 
-
-
-void syscallHandler__init(cspace_t *cspace, struct serial* serial_addr){
+void syscallHandler__init(cspace_t *cspace){
     rootCspace = cspace;
-    serial_ptr = serial_addr;
     for (size_t i = 0; i < SYSCALL_MAX; i++){
         // clearup the handles space 
         handles[i] = unimplemented_syscall;

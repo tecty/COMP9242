@@ -106,52 +106,15 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
      * slot is now empty. */
     seL4_Error err = cspace_save_reply_cap(&cspace, reply);
     ZF_LOGF_IFERR(err, "Failed to save reply");
-    seL4_MessageInfo_t reply_msg;
-    /* Process system call */
-    switch (syscall_number) {
-    case SOS_SYSCALL0:
-        ZF_LOGV("syscall: thread example made syscall 0!\n");
-        /* construct a reply message of length 1 */
-        reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
-        /* Set the first (and only) word in the message to 0 */
-        seL4_SetMR(0, 0);
-        /* Send the reply to the saved reply capability. */
-        seL4_Send(reply, reply_msg);
-        /* Free the slot we allocated for the reply - it is now empty, as the reply
-         * capability was consumed by the send. */
-        cspace_free_slot(&cspace, reply);
-        break;
-    case SOS_WRITE: ;
-        
-        // get the sent word 
-        size_t len = seL4_GetMR(1);
 
-        // upperbound of the data I can get
-        if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
-        
-        // ret from pico sent 
-        // ret might be -1;
-        // return the error if any let userlevel deal with error 
-        int ret = DriverSerial__write(
-            tty_test_process.share_buffer_vaddr, len
-        );
-
-        /* construct a reply message of length 1 */
-        reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
-        /* Set the first (and only) word in the message to 0 */
-        seL4_SetMR(0, ret);
-        /* Send the reply to the saved reply capability. */
-        seL4_Send(reply, reply_msg);
-
-        /* Free the slot we allocated for the reply - it is now empty, as the reply
-         * capability was consumed by the send. */
-        cspace_free_slot(&cspace, reply);
-
-        break;
-    default:
-        ZF_LOGE("Unknown syscall %lu\n", syscall_number);
-        /* don't reply to an unknown syscall */
-    }
+    // construct the unify structure to call to handler 
+    struct syscallMessage_s msg;
+    msg.replyCap = reply;
+    msg.tcb = &tty_test_process;
+    msg.words[0] = seL4_GetMR(1);
+    msg.words[1] = seL4_GetMR(2);
+    msg.words[2] = seL4_GetMR(3);
+    syscallHandler__handle(seL4_GetMR(0), &msg);
 }
 
 
@@ -638,7 +601,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     messageQ = DynamicQ__init(4*sizeof(seL4_Word));
 
     // init the syscall table and routine 
-    syscallHandler__init(&cspace,serial_ptr);
+    syscallHandler__init(&cspace);
 
 
     printf("\nSOS entering syscall loop\n");

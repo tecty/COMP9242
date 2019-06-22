@@ -23,13 +23,14 @@ struct syscallMessage_s
 typedef struct syscallMessage_s * syscallMessage_t;
 typedef void (*syscall_handles_t)(syscallMessage_t msg);
 
-void syscallHandler__init(cspace_t * cspace, struct serial* strial_p);
+void syscallHandler__init(cspace_t * cspace);
+void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg);
 
 
-/**
- * How much juice I can get from ipc buff
- */
-#define IPC_DATA_SIZE (seL4_MsgMaxLength -2) * sizeof(seL4_Word) 
+// /**
+//  * How much juice I can get from ipc buff
+//  */
+// #define IPC_DATA_SIZE (seL4_MsgMaxLength -2) * sizeof(seL4_Word) 
 
 
 /**
