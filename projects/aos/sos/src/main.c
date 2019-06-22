@@ -41,6 +41,7 @@
 #include "drivers/serial.h"
 #include "process.h"
 #include "syscallHandler.h"
+#include "syscallEvents.h"
 
 #include <aos/vsyscall.h>
 
@@ -86,35 +87,6 @@ static cspace_t cspace;
 /* the one process we start */
 static struct tcb tty_test_process;
 
-struct serial* serial_ptr;
-DynamicQ_t messageQ;
-
-
-/**
- * We might use badge as proc id?
- * Badge is a unforgeable id, So I can trust it can be unique 
- * Then the reply cap will not be free forever (To save time)
- */
-void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
-{
-    /* allocate a slot for the reply cap */
-    seL4_CPtr reply = cspace_alloc_slot(&cspace);
-    seL4_Error err = cspace_save_reply_cap(&cspace, reply);
-    ZF_LOGF_IFERR(err, "Failed to save reply");
-
-
-    // construct the unify structure to call to handler 
-    struct syscallMessage_s msg;
-    msg.replyCap = reply;
-    msg.tcb = &tty_test_process;
-    msg.words[0] = seL4_GetMR(1);
-    msg.words[1] = seL4_GetMR(2);
-    msg.words[2] = seL4_GetMR(3);
-    syscallHandler__handle(seL4_GetMR(0), &msg);
-}
-
-
-
 NORETURN void syscall_loop(seL4_CPtr ep)
 {
 
@@ -123,12 +95,23 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         /* Block on ep, waiting for an IPC sent over ep, or
          * a notification from our bound notification object */
         seL4_MessageInfo_t message;
+        seL4_Word label ;
         
-        message = seL4_Recv(ep, &badge);
-        // message = seL4_NBRecv(ep, &badge);
+        message = seL4_NBRecv(ep, &badge);
+        label = seL4_MessageInfo_get_label(message);
+        if (badge == 0)
+        {
+            /* Block the sos for performance  */
+            message = seL4_Recv(ep, &badge);
+            label = seL4_MessageInfo_get_label(message);
+        }
+        
+        printf("2I have a badage here %lu\n", badge);
+        
+
         /* Awake! We got a message - check the label and badge to
          * see what the message is about */
-        seL4_Word label = seL4_MessageInfo_get_label(message);
+
 
         if (badge & IRQ_EP_BADGE) {
             /* It's a notification from our bound notification
@@ -137,7 +120,8 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         } else if (label == seL4_Fault_NullFault) {
             /* It's not a fault or an interrupt, it must be an IPC
              * message from tty_test! */
-            handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1);
+            // handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1);
+            syscallEvents__enQueue(badge, seL4_MessageInfo_get_length(message) - 1);
         } else {
             /* some kind of fault */
             debug_print_fault(message, TTY_NAME);
@@ -593,12 +577,10 @@ NORETURN void *main_continued(UNUSED void *arg)
 
     
     printf("init the Syscall Message Queue\n");
-    // all the syscall must only have 4 words long?
-    messageQ = DynamicQ__init(4*sizeof(seL4_Word));
 
     // init the syscall table and routine 
-    syscallHandler__init(&cspace);
-
+    // syscallHandler__init(&cspace);
+    syscallEvents__init(&cspace, &tty_test_process);
 
     printf("\nSOS entering syscall loop\n");
     syscall_loop(ipc_ep);
