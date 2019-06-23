@@ -35,7 +35,7 @@ static void __syscall_close(syscallMessage_t msg){
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
     // printf("try to invoke the open \n");
     // make sure it won't overflow 
-    if (seL4_GetMR(0) == 3){
+    if (msg->words[0] == 3){
         // TODO: in filesys milestone
         // return 3
         seL4_SetMR(0, 0);

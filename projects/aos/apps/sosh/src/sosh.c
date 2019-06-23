@@ -438,7 +438,15 @@ int main(void)
 
     in = open("console", O_RDWR);
     test_buffers(in);
-
+    in = close(in);
+    if (in == 0)
+    {
+        printf("close test success\n");
+    } else {
+        printf("close test fail, I got %d\n", in);
+    }
+    
+    
     // assert(in >= 0);
 
     // printf("try to write to console");

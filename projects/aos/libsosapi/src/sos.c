@@ -49,6 +49,7 @@ int sos_sys_close(int file)
     seL4_SetMR(0,SOS_CLOSE);
     seL4_SetMR(1,file);
     seL4_Call(SYSCALL_ENDPOINT_SLOT, msg);
+    // printf("close %d got %lu\n",file, seL4_GetMR(0));
     return seL4_GetMR(0);
 }
 
