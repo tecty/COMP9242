@@ -20,12 +20,12 @@
 /**
  * Some syscall numbers 
  */
-
 #define SOS_OPEN       1
-#define SOS_WRITE      2
-#define SOS_READ       3
-#define SOS_TIMESTAMP  4
-#define SOS_US_SLEEP   5
+#define SOS_CLOSE      2
+#define SOS_WRITE      3
+#define SOS_READ       4
+#define SOS_TIMESTAMP  5
+#define SOS_US_SLEEP   6
 
 #define SHARE_BUF_VADDR       (0xA0001000)
 #define PAGE_SIZE_4K          (0x1000)
@@ -44,8 +44,12 @@ int sos_sys_open(const char *path, fmode_t mode)
 
 int sos_sys_close(int file)
 {
-    assert(!"You need to implement this sos_sys_close");
-    return -1;
+    seL4_MessageInfo_t msg = seL4_MessageInfo_new(0, 0, 0, 2);
+    // call 
+    seL4_SetMR(0,SOS_CLOSE);
+    seL4_SetMR(1,file);
+    seL4_Call(SYSCALL_ENDPOINT_SLOT, msg);
+    return seL4_GetMR(0);
 }
 
 int sos_sys_read(int file, char *buf, size_t nbyte)
@@ -89,7 +93,6 @@ static size_t sos_write_words(void * word, size_t len){
 
         trial ++;
     }
-    
     // pretend nothing happend if trail > 3 
     // we couldn't do anything 
     return ret;

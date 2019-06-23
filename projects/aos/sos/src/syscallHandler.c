@@ -30,6 +30,25 @@ static void __syscall_open(syscallMessage_t msg){
     seL4_Send(msg->replyCap, reply_msg);    
 }
 
+
+static void __syscall_close(syscallMessage_t msg){
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+    // printf("try to invoke the open \n");
+    // make sure it won't overflow 
+    if (seL4_GetMR(0) == 3){
+        // TODO: in filesys milestone
+        // return 3
+        seL4_SetMR(0, 0);
+    }
+    else {
+        seL4_SetMR(0,-1);
+    }
+    // return 
+    seL4_Send(msg->replyCap, reply_msg);    
+}
+
+
+
 void __syscall_read_callback(uint64_t len, void * data){
     syscallMessage_t msg = (syscallMessage_t) data;
     // ((char * )msg->tcb->share_buffer_vaddr)[len] = '\0';
@@ -109,6 +128,7 @@ void syscallHandler__init(cspace_t *cspace){
     /* Register implemented syscalls here */
     handles[SOS_WRITE]     = __syscall_write;
     handles[SOS_OPEN]      = __syscall_open;
+    handles[SOS_CLOSE]     = __syscall_close;
     handles[SOS_READ]      = __syscall_read;
     handles[SOS_TIMESTAMP] = __syscall_timestamp;
     handles[SOS_US_SLEEP]  = __syscall_us_sleep;

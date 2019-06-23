@@ -39,10 +39,11 @@ void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg);
  */
 
 #define SOS_OPEN       1
-#define SOS_WRITE      2
-#define SOS_READ       3
-#define SOS_TIMESTAMP  4
-#define SOS_US_SLEEP   5
+#define SOS_CLOSE      2
+#define SOS_WRITE      3
+#define SOS_READ       4
+#define SOS_TIMESTAMP  5
+#define SOS_US_SLEEP   6
 
 
 
