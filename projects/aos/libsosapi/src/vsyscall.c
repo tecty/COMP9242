@@ -33,5 +33,7 @@ void sosapi_init_syscall_table(void)
 
     // new syscalls 
     muslcsys_install_syscall(__NR_clock_gettime, sys_clock_gettime);
-    muslcsys_install_syscall(__NR_gettimeofday, sys_nanosleep);
+    // muslcsys_install_syscall(__NR_nanosleep, sys_nanosleep);
+    muslcsys_install_syscall(__NR_nanosleep, sys_nanosleep);
+    // muslcsys_install_syscall(__NR_clock_nanosleep, sys_nanosleep);
 }

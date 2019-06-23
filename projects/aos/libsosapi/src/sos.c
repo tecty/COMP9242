@@ -160,7 +160,7 @@ void sos_sys_usleep(int msec)
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 2);
     /* Set the first word in the message to 0 */
     seL4_SetMR(0, SOS_US_SLEEP);
-    seL4_SetMR(1, msec);
+    seL4_SetMR(1, msec*1000);
     seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
     // update value after syscall 
     return;
@@ -172,7 +172,8 @@ int64_t sos_sys_time_stamp(void)
     /* Set the first word in the message to 0 */
     seL4_SetMR(0, SOS_TIMESTAMP);
     seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+    // printf("I got here %lu\n", seL4_GetMR(0));
 
     // update value after syscall 
-    return  seL4_GetMR(0);
+    return  seL4_GetMR(0)*1000;
 }

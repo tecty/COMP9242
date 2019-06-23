@@ -305,6 +305,7 @@ static int second_sleep(int argc, char *argv[])
         printf("Usage %s seconds\n", argv[0]);
         return 1;
     }
+    // printf("I will sleep %d\n",atoi(argv[1]));
     sleep(atoi(argv[1]));
     return 0;
 }
@@ -410,10 +411,15 @@ int test_buffers(int console_fd) {
     assert(result == MEDIUM_BUF_SZ);
     printf("try to test timers\n");
 
-    /* try sleeping */
+    char* gap[3] ;
+    gap[0] = "sleep";
+    gap[1] = "1";
+    gap[2] = NULL;
+    /* try sleeping */  
     for (int i = 0; i < 5; i++) {
         time_t prev_seconds = time(NULL);
-        second_sleep(1, NULL);
+        // printf("curr time is %lu\n", prev_seconds);
+        second_sleep(2, gap);
         time_t next_seconds = time(NULL);
         assert(next_seconds > prev_seconds);
         printf("Tick\n");
