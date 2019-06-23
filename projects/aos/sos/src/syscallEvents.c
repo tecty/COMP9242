@@ -81,8 +81,6 @@ void syscallEvents__enQueue(UNUSED seL4_Word badge, UNUSED int num_args){
     event.msg.words[0] = seL4_GetMR(1);
     event.msg.words[1] = seL4_GetMR(2);
     event.msg.words[2] = seL4_GetMR(3);
-    // fast path
-    event.msg.event_id = 0;
 
     /* DT enqueue save it for later*/
     size_t event_id = DynamicArr__add(sysEvent.messageArr, &event);

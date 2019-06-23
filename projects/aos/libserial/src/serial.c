@@ -38,12 +38,16 @@ static void serial_recv_handler(uint16_t ev, struct pico_socket *s)
 {
     if (ev == PICO_SOCK_EV_RD) {
         int read = 0;
-        read = pico_socket_recvfrom(
-            serial.pico_socket, serial.buf,
-            serial.buf_len, &serial.peer, &serial.port
-        );
-        // I trust the handler will update a new buffer 
-        serial.handler(&serial,read);
+        do {
+            // printf("I need read %lu\n", serial.buf_len);
+            read = pico_socket_recvfrom(
+                serial.pico_socket, serial.buf,
+                serial.buf_len, &serial.peer, &serial.port
+            );
+            // printf("I have read %u\n", read);
+            // I trust the handler will update a new buffer 
+            serial.handler(&serial,read);
+        } while( read > 0);
     } else if (ev == PICO_SOCK_EV_ERR) {
         ZF_LOGE("Pico recv error");
     }
@@ -103,6 +107,7 @@ int serial_register_handler(
     struct serial *serial, void * buf, int buf_len,
     void (*handler)(struct serial *serial, int len)
 ){
+    // printf("Serial now has buff_len %d\n",  buf_len);
     serial->handler = handler;
     serial->buf_len = buf_len;
     serial->buf     = buf;

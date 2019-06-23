@@ -96,15 +96,19 @@ static size_t sos_write_words(seL4_Word * word, size_t len){
 
 size_t sos_write(void *vData, size_t count)
 {
-    seL4_Word* words = vData;
-    size_t index = 0;
-    while( index  < count  ){
-        // send it word by word 
-        index  += sos_write_words(
-            &words[index/sizeof(seL4_Word)],
-            // how much bytes remains 
-            count - index 
-        );
+    // seL4_Word* words = vData;
+    // size_t index = 0;
+    // while( index  < count  ){
+    //     // send it word by word 
+    //     index  += sos_write_words(
+    //         &words[index/sizeof(seL4_Word)],
+    //         // how much bytes remains 
+    //         count - index 
+    //     );
+    // }
+    for (size_t i = 0; i < count; i++)
+    {
+        seL4_DebugPutChar(((char *)vData)[i]);
     }
     
     return count;
@@ -375,14 +379,46 @@ struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
     {"benchmark", benchmark}
 };
 
-// int main(void){
-//     sosapi_init_syscall_table();
-//     int out = open("console", O_WRONLY);
-//     char buf[BUF_SIZ];
+#define SMALL_BUF_SZ 2
+#define MEDIUM_BUF_SZ 256
 
-//     read(out, buf, BUF_SIZ);
-    
-// }
+char test_str[] = "Basic test string for read/write";
+char small_buf[SMALL_BUF_SZ];
+
+int test_buffers(int console_fd) {
+   /* test a small string from the code segment */
+    int result = sos_sys_write(console_fd, test_str, strlen(test_str));
+    // printf("\ni have got a reply %d\n", result);
+
+    assert(result == strlen(test_str));
+
+    /* test reading to a small buffer */
+    result = sos_sys_read(console_fd, small_buf, SMALL_BUF_SZ);
+    /* make sure you type in at least SMALL_BUF_SZ */
+    // assert(result == SMALL_BUF_SZ);
+
+    /* test reading into a large on-stack buffer */
+    char stack_buf[MEDIUM_BUF_SZ];
+
+    /* for this test you'll need to paste a lot of data into
+        the console, without newlines */
+
+    result = sos_sys_read(console_fd, stack_buf, MEDIUM_BUF_SZ);
+    assert(result == MEDIUM_BUF_SZ);
+
+    result = sos_sys_write(console_fd, stack_buf, MEDIUM_BUF_SZ);
+    assert(result == MEDIUM_BUF_SZ);
+
+
+    /* try sleeping */
+    for (int i = 0; i < 5; i++) {
+        time_t prev_seconds = time(NULL);
+        second_sleep(1, NULL);
+        time_t next_seconds = time(NULL);
+        assert(next_seconds > prev_seconds);
+        printf("Tick\n");
+    }
+}
 
 int main(void)
 {
@@ -395,130 +431,131 @@ int main(void)
     char *bp, *p;
 
     in = open("console", O_RDWR);
-    assert(in >= 0);
+    test_buffers(in);
 
-    printf("try to write to console");
-    write(3, "hello\n",6);
+    // assert(in >= 0);
 
+    // printf("try to write to console");
+    // write(3, "hello\n",6);
 
-    bp = buf;
-    done = 0;
-    new = 1;
+    // bp = buf;
+    // done = 0;
+    // new = 1;
 
-    printf("\n[SOS Starting]\n");
+    // printf("\n[SOS Starting]\n");
 
-    while (!done) {
-        if (new) {
-            printf("$ ");
-        }
-        new = 0;
-        found = 0;
+    // while (!done) {
+    //     if (new) {
+    //         printf("$ ");
+    //     }
+    //     new = 0;
+    //     found = 0;
 
-        while (!found && !done) {
-            /* Make sure to flush so anything is visible while waiting for user input */
-            fflush(stdout);
-            r = read(in, bp, BUF_SIZ - 1 + buf - bp);
+    //     while (!found && !done) {
+    //         /* Make sure to flush so anything is visible while waiting for user input */
+    //         fflush(stdout);
+    //         r = read(in, bp, BUF_SIZ - 1 + buf - bp);
 
-            printf("I ahve read %s\n", bp);
-            if (r < 0) {
-                printf("Console read failed!\n");
-                done = 1;
-                break;
-            }
-            bp[r] = 0; /* terminate */
-            for (p = bp; p < bp + r; p++) {
-                if (*p == '\03') { /* ^C */
-                    printf("^C\n");
-                    p = buf;
-                    new = 1;
-                    break;
-                } else if (*p == '\04') { /* ^D */
-                    p++;
-                    found = 1;
-                } else if (*p == '\010' || *p == 127) {
-                    /* ^H and BS and DEL */
-                    if (p > buf) {
-                        printf("\010 \010");
-                        p--;
-                        r--;
-                    }
-                    p--;
-                    r--;
-                } else if (*p == '\n') { /* ^J */
-                    printf("%c", *p);
-                    *p = 0;
-                    found = p > buf;
-                    p = buf;
-                    new = 1;
-                    break;
-                } else {
-                    printf("%c", *p);
-                }
-            }
-            bp = p;
-            if (bp == buf) {
-                break;
-            }
-        }
+    //         printf("I ahve %d bytes read %s\n", r,bp);
+    //         if (r < 0) {
+    //             printf("Console read failed!\n");
+    //             done = 1;
+    //             break;
+    //         }
+    //         bp[r] = 0; /* terminate */
+    //         for (p = bp; p < bp + r; p++) {
+    //             if (*p == '\03') { /* ^C */
+    //                 printf("^C\n");
+    //                 p = buf;
+    //                 new = 1;
+    //                 break;
+    //             } else if (*p == '\04') { /* ^D */
+    //                 p++;
+    //                 found = 1;
+    //             } else if (*p == '\010' || *p == 127) {
+    //                 /* ^H and BS and DEL */
+    //                 if (p > buf) {
+    //                     printf("\010 \010");
+    //                     p--;
+    //                     r--;
+    //                 }
+    //                 p--;
+    //                 r--;
+    //             } else if (*p == '\n') { /* ^J */
+    //                 printf("%c", *p);
+    //                 *p = 0;
+    //                 found = p > buf;
+    //                 p = buf;
+    //                 new = 1;
+    //                 break;
+    //             } else {
+    //                 printf("%c", *p);
+    //             }
+    //         }
+    //         bp = p;
+    //         if (bp == buf) {
+    //             break;
+    //         }
+    //     }
 
-        if (!found) {
-            continue;
-        }
+    //     if (!found) {
+    //         continue;
+    //     }
 
-        argc = 0;
-        p = buf;
+    //     argc = 0;
+    //     p = buf;
 
-        while (*p != '\0') {
-            /* Remove any leading spaces */
-            while (*p == ' ') {
-                p++;
-            }
-            if (*p == '\0') {
-                break;
-            }
-            argv[argc++] = p; /* Start of the arg */
-            while (*p != ' ' && *p != '\0') {
-                p++;
-            }
+    //     while (*p != '\0') {
+    //         /* Remove any leading spaces */
+    //         while (*p == ' ') {
+    //             p++;
+    //         }
+    //         if (*p == '\0') {
+    //             break;
+    //         }
+    //         argv[argc++] = p; /* Start of the arg */
+    //         while (*p != ' ' && *p != '\0') {
+    //             p++;
+    //         }
 
-            if (*p == '\0') {
-                break;
-            }
+    //         if (*p == '\0') {
+    //             break;
+    //         }
 
-            /* Null out first space */
-            *p = '\0';
-            p++;
-        }
+    //         /* Null out first space */
+    //         *p = '\0';
+    //         p++;
+    //     }
 
-        if (argc == 0) {
-            continue;
-        }
+    //     if (argc == 0) {
+    //         continue;
+    //     }
 
-        found = 0;
+    //     found = 0;
 
-        for (i = 0; i < sizeof(commands) / sizeof(struct command); i++) {
-            if (strcmp(argv[0], commands[i].name) == 0) {
-                commands[i].command(argc, argv);
-                found = 1;
-                break;
-            }
-        }
+    //     for (i = 0; i < sizeof(commands) / sizeof(struct command); i++) {
+    //         if (strcmp(argv[0], commands[i].name) == 0) {
+    //             commands[i].command(argc, argv);
+    //             found = 1;
+    //             break;
+    //         }
+    //     }
 
-        /* Didn't find a command */
-        if (found == 0) {
-            /* They might try to exec a program */
-            if (sos_stat(argv[0], &sbuf) != 0) {
-                printf("Command \"%s\" not found\n", argv[0]);
-            } else if (!(sbuf.st_fmode & FM_EXEC)) {
-                printf("File \"%s\" not executable\n", argv[0]);
-            } else {
-                /* Execute the program */
-                argc = 2;
-                argv[1] = argv[0];
-                argv[0] = "exec";
-                exec(argc, argv);
-            }
-        }
-    }
-    printf("[SOS Exiting]\n");
+    //     /* Didn't find a command */
+    //     if (found == 0) {
+    //         /* They might try to exec a program */
+    //         if (sos_stat(argv[0], &sbuf) != 0) {
+    //             printf("Command \"%s\" not found\n", argv[0]);
+    //         } else if (!(sbuf.st_fmode & FM_EXEC)) {
+    //             printf("File \"%s\" not executable\n", argv[0]);
+    //         } else {
+    //             /* Execute the program */
+    //             argc = 2;
+    //             argv[1] = argv[0];
+    //             argv[0] = "exec";
+    //             exec(argc, argv);
+    //         }
+    //     }
+    // }
+    // printf("[SOS Exiting]\n");
 }

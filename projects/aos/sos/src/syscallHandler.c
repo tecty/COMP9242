@@ -13,7 +13,7 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
 
 static void __syscall_open(syscallMessage_t msg){
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
-    printf("try to invoke the open \n");
+    // printf("try to invoke the open \n");
     // make sure it won't overflow 
     ((char *)msg->tcb->share_buffer_vaddr)[1023] ='\0';
     if (strcmp(msg->tcb->share_buffer_vaddr,"console") ==0){
@@ -30,7 +30,9 @@ static void __syscall_open(syscallMessage_t msg){
 }
 
 void __syscall_read_callback(uint64_t len, void * data){
-    syscallMessage_t msg = (syscallMessage_t) data;    
+    syscallMessage_t msg = (syscallMessage_t) data;
+    // ((char * )msg->tcb->share_buffer_vaddr)[len] = '\0';
+    // printf("I sent to client %s\n", ((char * )msg->tcb->share_buffer_vaddr));
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
     seL4_SetMR(0, len);
 
@@ -41,6 +43,7 @@ void __syscall_read_callback(uint64_t len, void * data){
 
 static void __syscall_read(syscallMessage_t msg){
     uint64_t len = msg -> words[0];
+    // printf("I have got read len %lu\n",len);
     if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
     DriverSerial__read(msg->tcb->share_buffer_vaddr, len, msg, __syscall_read_callback);
 }
