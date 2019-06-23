@@ -30,4 +30,8 @@ void sosapi_init_syscall_table(void)
     muslcsys_install_syscall(__NR_brk, sys_brk);
     muslcsys_install_syscall(__NR_writev, sys_writev);
     muslcsys_install_syscall(__NR_set_tid_address, sys_set_tid_address);
+
+    // new syscalls 
+    muslcsys_install_syscall(__NR_clock_gettime, sys_clock_gettime);
+    muslcsys_install_syscall(__NR_gettimeofday, sys_nanosleep);
 }

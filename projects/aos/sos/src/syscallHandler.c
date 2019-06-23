@@ -1,6 +1,7 @@
 #include "syscallHandler.h"
 #include "drivers/serial.h"
 #include "syscallEvents.h"
+#include <clock/clock.h>
 
 // basic elements for handleing syscalls 
 static cspace_t * rootCspace;
@@ -73,6 +74,30 @@ static void __syscall_write(syscallMessage_t msg){
 }
 
 
+static void __syscall_timestamp(syscallMessage_t msg){
+    /* construct a reply message of length 1 */
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+    /* Set the first (and only) word in the message to 0 */
+    seL4_SetMR(0, get_time());
+    /* Send the reply to the saved reply capability. */
+    seL4_Send(msg->replyCap, reply_msg);
+    // finish it by calling a callback 
+    syscallEvents__finish(msg->event_id);
+}
+
+void us_sleep_callback(UNUSED uint32_t id, void * data ){
+    syscallMessage_t msg = data;
+    
+    // just reply
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
+    seL4_Send(msg->replyCap, reply_msg);
+
+    syscallEvents__finish(msg->event_id);
+}
+
+static void __syscall_us_sleep(syscallMessage_t msg){
+    register_timer(msg->words[0], us_sleep_callback, (void *) msg);
+}
 
 void syscallHandler__init(cspace_t *cspace){
     rootCspace = cspace;
@@ -82,9 +107,12 @@ void syscallHandler__init(cspace_t *cspace){
     }
     
     /* Register implemented syscalls here */
-    handles[SOS_WRITE] = __syscall_write;
-    handles[SOS_OPEN]  = __syscall_open;
-    handles[SOS_READ]  = __syscall_read;
+    handles[SOS_WRITE]     = __syscall_write;
+    handles[SOS_OPEN]      = __syscall_open;
+    handles[SOS_READ]      = __syscall_read;
+    handles[SOS_TIMESTAMP] = __syscall_timestamp;
+    handles[SOS_US_SLEEP]  = __syscall_us_sleep;
+
 }
 
 void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg){

@@ -382,7 +382,7 @@ struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
 #define SMALL_BUF_SZ 2
 #define MEDIUM_BUF_SZ 256
 
-char test_str[] = "Basic test string for read/write";
+char test_str[] = "Basic test string for read/write\n";
 char small_buf[SMALL_BUF_SZ];
 
 int test_buffers(int console_fd) {
@@ -408,7 +408,7 @@ int test_buffers(int console_fd) {
 
     result = sos_sys_write(console_fd, stack_buf, MEDIUM_BUF_SZ);
     assert(result == MEDIUM_BUF_SZ);
-
+    printf("try to test timers\n");
 
     /* try sleeping */
     for (int i = 0; i < 5; i++) {

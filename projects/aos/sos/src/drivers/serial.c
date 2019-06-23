@@ -75,8 +75,8 @@ void reply_call_back(UNUSED struct serial* sptr, int len){
     
     /* Destory the datastructure */
     DynamicQ__deQueue(serial_s.read_q);
-    printf("I have read %d\n",len);
-    printf("content %s\n", (char *) iov->buf);
+    // printf("I have read %d\n",len);
+    // printf("content %s\n", (char *) iov->buf);
     try_reg_callback();
 }
 

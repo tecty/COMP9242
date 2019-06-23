@@ -34,3 +34,5 @@ long sys_ioctl(va_list ap);
 long sys_brk(va_list ap);
 long sys_mmap(va_list ap);
 long sys_writev(va_list ap);
+long sys_clock_gettime(va_list ap);
+long sys_nanosleep(va_list ap);

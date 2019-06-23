@@ -21,9 +21,11 @@
  * Some syscall numbers 
  */
 
-#define SOS_OPEN  1
-#define SOS_WRITE 2
-#define SOS_READ  3
+#define SOS_OPEN       1
+#define SOS_WRITE      2
+#define SOS_READ       3
+#define SOS_TIMESTAMP  4
+#define SOS_US_SLEEP   5
 
 #define SHARE_BUF_VADDR       (0xA0001000)
 #define PAGE_SIZE_4K          (0x1000)
@@ -155,11 +157,22 @@ pid_t sos_process_wait(pid_t pid)
 
 void sos_sys_usleep(int msec)
 {
-    assert(!"You need to implement this  sos_sys_usleep");
+    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 2);
+    /* Set the first word in the message to 0 */
+    seL4_SetMR(0, SOS_US_SLEEP);
+    seL4_SetMR(1, msec);
+    seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+    // update value after syscall 
+    return;
 }
 
 int64_t sos_sys_time_stamp(void)
 {
-    assert(!"You need to implement this 4_t");
-    return -1;
+    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 1);
+    /* Set the first word in the message to 0 */
+    seL4_SetMR(0, SOS_TIMESTAMP);
+    seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+
+    // update value after syscall 
+    return  seL4_GetMR(0);
 }
