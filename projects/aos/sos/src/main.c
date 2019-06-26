@@ -196,7 +196,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
         return 0;
     }
     tty_test_process.fdt = vfsFdt__init();
-
+    printf("\nAllocated fdt at %p\n", tty_test_process.fdt);
     seL4_Error err;
 
     /* Map the frame to tty's addr and sos's addr  */

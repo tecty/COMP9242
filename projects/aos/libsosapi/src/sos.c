@@ -56,10 +56,11 @@ int sos_sys_close(int file)
 int sos_sys_read(int file, char *buf, size_t nbyte)
 {
     // printf("I want to read %lu\n", nbyte);
-    seL4_MessageInfo_t msg = seL4_MessageInfo_new(0, 0, 0, 2);
+    seL4_MessageInfo_t msg = seL4_MessageInfo_new(0, 0, 0, 3);
     // call 
     seL4_SetMR(0,SOS_READ);
-    seL4_SetMR(1,nbyte);
+    seL4_SetMR(1,file);
+    seL4_SetMR(2,nbyte);
     seL4_Call(SYSCALL_ENDPOINT_SLOT, msg);
     int64_t read =  seL4_GetMR(0);
     if (read !=  -1) memcpy(buf, (char *) SHARE_BUF_VADDR, read);
@@ -67,7 +68,7 @@ int sos_sys_read(int file, char *buf, size_t nbyte)
     return read;
 }
 
-static size_t sos_write_words(void * word, size_t len){
+static size_t sos_write_words(int file, void * word, size_t len){
     //implement this to use your syscall
     // return sos_debug_print(vData, count);
     int ret = -1; 
@@ -78,10 +79,11 @@ static size_t sos_write_words(void * word, size_t len){
     
     while ( ret == -1 && trial < 3){
         /* deal with the hardware error in the user-mode */
-        seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 2);
+        seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 3);
         /* Set the first word in the message to 0 */
         seL4_SetMR(0, SOS_WRITE);
-        seL4_SetMR(1, len);
+        seL4_SetMR(1, file);
+        seL4_SetMR(2, len);
         // copy the message into the ipc buffer
         memcpy((void *) SHARE_BUF_VADDR, word,len);
 
@@ -106,6 +108,7 @@ int sos_sys_write(int file, const char *buf, size_t nbyte)
     while( index  < nbyte  ){
         // send it word by word 
         index  += sos_write_words(
+            file,
             (void *) &buf[index/sizeof(seL4_Word)],
             // how much bytes remains 
             nbyte - index 
