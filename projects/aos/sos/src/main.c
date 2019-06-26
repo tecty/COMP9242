@@ -42,7 +42,7 @@
 #include "process.h"
 #include "syscallHandler.h"
 #include "syscallEvents.h"
-
+#include "vfs.h"
 #include <aos/vsyscall.h>
 
 #include <adt/dynamicQ.h>
@@ -195,6 +195,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
         ZF_LOGE("could not find syscall table for c library");
         return 0;
     }
+    tty_test_process.fdt = vfsFdt__init();
 
     seL4_Error err;
 
@@ -561,6 +562,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     network_init(&cspace, timer_vaddr);
 
     DriverSerial__init();
+    vfs__init();
 
     /* Initialises the timer */
     printf("Timer init\n");

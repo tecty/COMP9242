@@ -4,7 +4,7 @@
 #include <cspace/cspace.h>
 #include "ut.h"
 #include "vmem_layout.h"
-
+#include "vfs.h"
 
 struct tcb{
     ut_t *tcb_ut;
@@ -23,6 +23,8 @@ struct tcb{
 
     ut_t *stack_ut;
     seL4_CPtr stack;
+
+    FDT_t fdt;
 };
 
 typedef struct tcb * tcb_t;
