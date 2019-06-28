@@ -62,12 +62,14 @@ add_executable(
     src/drivers/uart.c
     archive.o
     src/sos.lds
-    # new stuff here
+    # m2 new here
     src/drivers/serial.c
     src/syscallHandler.c
     src/syscallEvents.c
     src/process.c
     src/vfs.c
+    # m3 new here
+    src/syscallHandler.c
 )
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(
