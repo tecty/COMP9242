@@ -38,12 +38,16 @@
 #include "syscalls.h"
 #include "tests.h"
 
+// m2
 #include "drivers/serial.h"
 #include "process.h"
 #include "syscallHandler.h"
 #include "syscallEvents.h"
 #include "vfs.h"
 #include <aos/vsyscall.h>
+
+// m3 
+#include "sos_mapping.h"
 
 #include <adt/dynamicQ.h>
 
@@ -377,12 +381,34 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
     }
 
     /* Create an IPC buffer */
-    tty_test_process.ipc_buffer_ut = alloc_retype(&tty_test_process.ipc_buffer, seL4_ARM_SmallPageObject,
-                                                  seL4_PageBits);
-    if (tty_test_process.ipc_buffer_ut == NULL) {
-        ZF_LOGE("Failed to alloc ipc buffer ut");
-        return false;
+    // tty_test_process.ipc_buffer_ut = alloc_retype(&tty_test_process.ipc_buffer, seL4_ARM_SmallPageObject,
+    //                                               seL4_PageBits);
+    // if (tty_test_process.ipc_buffer_ut == NULL) {
+    //     ZF_LOGE("Failed to alloc ipc buffer ut");
+    //     return false;
+    // }
+    // printf("I have got the ipc buf cptr %lu \n", tty_test_process.ipc_buffer);
+
+    frame_ref_t frame = alloc_frame();
+    if (frame == NULL_FRAME){
+        ZF_LOGE("Fail to map frame to sos\n");
     }
+    tty_test_process.ipc_buffer = cspace_alloc_slot(&cspace);
+    err = cspace_copy(
+        &cspace, tty_test_process.ipc_buffer, frame_table_cspace(),
+        frame_page(frame), seL4_AllRights
+    );
+    if (frame == NULL_FRAME){
+        ZF_LOGE("Fail to copy frame cap sos\n");
+    }
+    
+    // tty_test_process.ipc_buffer_ut = alloc_retype(&tty_test_process.ipc_buffer, seL4_ARM_SmallPageObject,
+    //                                               seL4_PageBits);
+    // if (tty_test_process.ipc_buffer_ut == NULL) {
+    //     ZF_LOGE("Failed to alloc ipc buffer ut");
+    //     return false;
+    // }
+
 
     /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into --
      * the badge is used to identify the process, which will come in handy when you have multiple
@@ -550,7 +576,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     frame_table_init(&cspace, seL4_CapInitThreadVSpace);
 
     /* run sos initialisation tests */
-    run_tests(&cspace);
+    // run_tests(&cspace);
 
     /* Map the timer device (NOTE: this is the same mapping you will use for your timer driver -
      * sos uses the watchdog timers on this page to implement reset infrastructure & network ticks,

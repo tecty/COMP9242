@@ -69,7 +69,7 @@ add_executable(
     src/process.c
     src/vfs.c
     # m3 new here
-    src/syscallHandler.c
+    src/sos_mapping.c
 )
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(
