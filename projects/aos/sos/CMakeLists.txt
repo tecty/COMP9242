@@ -70,6 +70,7 @@ add_executable(
     src/vfs.c
     # m3 new here
     src/sos_mapping.c
+    src/addressSpace.c
 )
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(

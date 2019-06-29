@@ -381,14 +381,6 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
     }
 
     /* Create an IPC buffer */
-    // tty_test_process.ipc_buffer_ut = alloc_retype(&tty_test_process.ipc_buffer, seL4_ARM_SmallPageObject,
-    //                                               seL4_PageBits);
-    // if (tty_test_process.ipc_buffer_ut == NULL) {
-    //     ZF_LOGE("Failed to alloc ipc buffer ut");
-    //     return false;
-    // }
-    // printf("I have got the ipc buf cptr %lu \n", tty_test_process.ipc_buffer);
-
     frame_ref_t frame = alloc_frame();
     if (frame == NULL_FRAME){
         ZF_LOGE("Fail to map frame to sos\n");
@@ -402,13 +394,6 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
         ZF_LOGE("Fail to copy frame cap sos\n");
     }
     
-    // tty_test_process.ipc_buffer_ut = alloc_retype(&tty_test_process.ipc_buffer, seL4_ARM_SmallPageObject,
-    //                                               seL4_PageBits);
-    // if (tty_test_process.ipc_buffer_ut == NULL) {
-    //     ZF_LOGE("Failed to alloc ipc buffer ut");
-    //     return false;
-    // }
-
 
     /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into --
      * the badge is used to identify the process, which will come in handy when you have multiple
@@ -607,8 +592,6 @@ NORETURN void *main_continued(UNUSED void *arg)
     printf("Start first process\n");
     bool success = start_first_process(TTY_NAME, ipc_ep);
     ZF_LOGF_IF(!success, "Failed to start first process");
-
-    
 
     // init the syscall table and routine 
     // syscallHandler__init(&cspace);
