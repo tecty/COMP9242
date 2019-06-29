@@ -40,6 +40,7 @@ DynamicArr_t DynamicArr__init(size_t item_size){
  * @ret: the id to the inside managed strcuture 
  */
 size_t DynamicArr__add(DynamicArr_t da,void * data){
+    printf("I have copied %u\n", da->item_size);
     // printf("%lu/%lu\n", da->alloced, da->length);
     if (da->alloced == da-> length - 2){
         // double the size, pre_alloc to improve searching

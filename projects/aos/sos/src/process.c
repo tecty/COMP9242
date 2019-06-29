@@ -15,6 +15,8 @@
 #include "vfs.h"
 #include "syscallEvents.h"
 
+#include <stdio.h>
+
 static seL4_Word share_buff_curr =  SOS_SHARE_BUF_START;
 
 #define TTY_PRIORITY         (0)
@@ -111,7 +113,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
     );
     if (process_s.the_proc->share_buffer_ut == NULL) {
         ZF_LOGE("Failed to alloc share buffer ut");
-        return false;
+        return 0;
     }
     err = sos_map_frame(
         cspace, process_s.the_proc->share_buffer, process_s.the_proc->vspace, 
@@ -257,7 +259,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
  * TODO: avoid leaking memory once you implement real processes, otherwise a user
  *       can force your OS to run out of memory by creating lots of failed processes.
  */
-bool Process__startProc(char *app_name, seL4_CPtr ep)
+uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
 {
     /* Create a VSpace */
     process_s.the_proc->vspace_ut = Process__allocRetype(
@@ -265,21 +267,21 @@ bool Process__startProc(char *app_name, seL4_CPtr ep)
         seL4_PGDBits
     );
     if (process_s.the_proc->vspace_ut == NULL) {
-        return false;
+        return 0;
     }
 
     /* assign the vspace to an asid pool */
     seL4_Word err = seL4_ARM_ASIDPool_Assign(seL4_CapInitThreadASIDPool, process_s.the_proc->vspace);
     if (err != seL4_NoError) {
         ZF_LOGE("Failed to assign asid pool");
-        return false;
+        return 0;
     }
 
     /* Create a simple 1 level CSpace */
     err = cspace_create_one_level(process_s.cspace, &process_s.the_proc->cspace);
     if (err != CSPACE_NOERROR) {
         ZF_LOGE("Failed to create cspace");
-        return false;
+        return 0;
     }
 
     /* Create an IPC buffer */
@@ -303,21 +305,21 @@ bool Process__startProc(char *app_name, seL4_CPtr ep)
     seL4_CPtr user_ep = cspace_alloc_slot(&process_s.the_proc->cspace);
     if (user_ep == seL4_CapNull) {
         ZF_LOGE("Failed to alloc user ep slot");
-        return false;
+        return 0;
     }
 
     /* now mutate the cap, thereby setting the badge */
     err = cspace_mint(&process_s.the_proc->cspace, user_ep, process_s.cspace, ep, seL4_AllRights, TTY_EP_BADGE);
     if (err) {
         ZF_LOGE("Failed to mint user ep");
-        return false;
+        return 0;
     }
 
     /* Create a new TCB object */
     process_s.the_proc->tcb_ut = Process__allocRetype(&process_s.the_proc->tcb, seL4_TCBObject, seL4_TCBBits);
     if (process_s.the_proc->tcb_ut == NULL) {
         ZF_LOGE("Failed to alloc tcb ut");
-        return false;
+        return 0;
     }
 
     /* Configure the TCB */
@@ -327,14 +329,14 @@ bool Process__startProc(char *app_name, seL4_CPtr ep)
                              process_s.the_proc->ipc_buffer);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to configure new TCB");
-        return false;
+        return 0;
     }
 
     /* Set the priority */
     err = seL4_TCB_SetPriority(process_s.the_proc->tcb, seL4_CapInitThreadTCB, TTY_PRIORITY);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to set priority of new TCB");
-        return false;
+        return 0;
     }
 
     /* Provide a name for the thread -- Helpful for debugging */
@@ -348,7 +350,7 @@ bool Process__startProc(char *app_name, seL4_CPtr ep)
     char *elf_base = cpio_get_file(process_s.cpio_archive, cpio_len, app_name, &elf_size);
     if (elf_base == NULL) {
         ZF_LOGE("Unable to locate cpio header for %s", app_name);
-        return false;
+        return 0;
     }
     /* Ensure that the file is an elf file. */
     if (elf_newFile(elf_base, elf_size, &elf_file)) {
@@ -363,7 +365,7 @@ bool Process__startProc(char *app_name, seL4_CPtr ep)
     err = elf_load(process_s.cspace, process_s.the_proc->vspace, &elf_file);
     if (err) {
         ZF_LOGE("Failed to load elf image");
-        return false;
+        return 0;
     }
 
     /* Map in the IPC buffer for the thread */
@@ -371,7 +373,7 @@ bool Process__startProc(char *app_name, seL4_CPtr ep)
                     seL4_AllRights, seL4_ARM_Default_VMAttributes);
     if (err != 0) {
         ZF_LOGE("Unable to map IPC buffer for user app");
-        return false;
+        return 0;
     }
 
     /* Start the new process */
@@ -382,12 +384,34 @@ bool Process__startProc(char *app_name, seL4_CPtr ep)
     // printf("Starting ttytest at %p\n", (void *) context.pc);
     err = seL4_TCB_WriteRegisters(process_s.the_proc->tcb, 1, 0, 2, &context);
     ZF_LOGE_IF(err, "Failed to write registers");
-    return err == seL4_NoError;
+    if (err != seL4_NoError){
+        return 0;
+    }
+
+
+    return DynamicArr__add(process_s.procArr, process_s.the_proc) + 1;
 }
+
 sos_pcb_t Process__getTheProc(){
     return process_s.the_proc;
 }
 
 sos_pcb_t Process__getPcbByPid(uint32_t pid){
-    return DynamicArr__get(process_s.procArr, pid - 1);
+    sos_pcb_t ret = DynamicArr__get(process_s.procArr, pid - 1);
+    
+    printf("tcb_ut: %p\t%p\n", ret->tcb_ut, process_s.the_proc->tcb_ut);
+    printf("tcb: %ld\t%ld\n", ret->tcb, process_s.the_proc->tcb);
+    printf("vspace_ut: %p\t%p\n", ret->vspace_ut, process_s.the_proc->vspace_ut);
+    printf("vspace: %ld\t%ld\n", ret->vspace, process_s.the_proc->vspace);
+    printf("ipc_buffer_ut: %p\t%p\n", ret->ipc_buffer_ut, process_s.the_proc->ipc_buffer_ut);
+    printf("ipc_buffer: %ld\t%ld\n", ret->ipc_buffer, process_s.the_proc->ipc_buffer);
+    printf("share_buffer_ut: %p\t%p\n", ret->share_buffer_ut, process_s.the_proc->share_buffer_ut);
+    printf("share_buffer: %ld\t%ld\n", ret->share_buffer, process_s.the_proc->share_buffer);
+    printf("share_buffer_vaddr: %p\t%p\n", ret->share_buffer_vaddr, process_s.the_proc->share_buffer_vaddr);
+    printf("cspace: %p\t%p\n",  (void *) & ret->cspace,  (void *) & process_s.the_proc->cspace);
+    printf("stack_ut: %p\t%p\n", ret->stack_ut, process_s.the_proc->stack_ut);
+    printf("stack: %ld\t%ld\n", ret->stack, process_s.the_proc->stack);
+    printf("fdt: %p\t%p\n", ret->fdt, process_s.the_proc->fdt);
+    
+    return ret;
 }

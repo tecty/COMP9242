@@ -7,7 +7,6 @@
 #include "vfs.h"
 
 struct sos_pcb{
-    uint32_t pid;
     ut_t *tcb_ut;
     seL4_CPtr tcb;
     ut_t *vspace_ut;
@@ -33,7 +32,7 @@ typedef struct sos_pcb * sos_pcb_t;
 void Process__init(
     cspace_t * cspace, char * cpio_archive, char* cpio_archive_end
 );
-bool Process__startProc(char *app_name, seL4_CPtr ep);
+uint32_t Process__startProc(char *app_name, seL4_CPtr ep);
 
 sos_pcb_t Process__getPcbByPid(uint32_t pid);
 sos_pcb_t Process__getTheProc();
