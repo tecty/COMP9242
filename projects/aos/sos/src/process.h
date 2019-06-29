@@ -7,6 +7,7 @@
 #include "vfs.h"
 
 struct sos_pcb{
+    uint32_t pid;
     ut_t *tcb_ut;
     seL4_CPtr tcb;
     ut_t *vspace_ut;
@@ -29,7 +30,13 @@ struct sos_pcb{
 
 typedef struct sos_pcb * sos_pcb_t;
 
+void Process__init(
+    cspace_t * cspace, char * cpio_archive, char* cpio_archive_end
+);
+bool Process__startProc(char *app_name, seL4_CPtr ep);
+
+sos_pcb_t Process__getPcbByPid(uint32_t pid);
+sos_pcb_t Process__getTheProc();
 // global share buff addr incrementor
 void * get_new_share_buff_vaddr();
 #endif // PROCESS_H
-

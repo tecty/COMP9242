@@ -13,6 +13,7 @@
 #include "ut.h"
 #include "frame_table.h"
 #include "vfs.h"
+#include "syscallEvents.h"
 
 static seL4_Word share_buff_curr =  SOS_SHARE_BUF_START;
 
@@ -21,8 +22,10 @@ static seL4_Word share_buff_curr =  SOS_SHARE_BUF_START;
 
 static struct {
     cspace_t * cspace;
+    DynamicArr_t procArr;
     char * cpio_archive;
     char * cpio_archive_end;
+    sos_pcb_t the_proc;
 } process_s;
 
 void * get_new_share_buff_vaddr(){
@@ -35,10 +38,11 @@ void Process__init(
     cspace_t * cspace, char * cpio_archive, char* cpio_archive_end
 ){
     process_s.cspace           = cspace;
+    process_s.procArr          = DynamicArr__init(sizeof(struct sos_pcb));
     process_s.cpio_archive     = cpio_archive;
     process_s.cpio_archive_end = cpio_archive_end;
+    process_s.the_proc = malloc(sizeof(struct sos_pcb));
 }
-
 
 /* helper to allocate a ut + cslot, and retype the ut into the cslot */
 static ut_t *Process__allocRetype(seL4_CPtr *cptr, seL4_Word type, size_t size_bits)
@@ -70,8 +74,6 @@ static ut_t *Process__allocRetype(seL4_CPtr *cptr, seL4_Word type, size_t size_b
     return ut;
 }
 
-
-
 static int Process__writeStack(seL4_Word *mapped_stack, int index, uintptr_t val)
 {
     mapped_stack[index] = val;
@@ -80,7 +82,7 @@ static int Process__writeStack(seL4_Word *mapped_stack, int index, uintptr_t val
 
 /* set up System V ABI compliant stack, so that the process can
  * start up and initialise the C library */
-static uintptr_t Process__initStack(sos_pcb_t proc, cspace_t *cspace, seL4_CPtr local_vspace, elf_t *elf_file)
+static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, elf_t *elf_file)
 {
     /* Create a stack frame */
 
@@ -99,20 +101,20 @@ static uintptr_t Process__initStack(sos_pcb_t proc, cspace_t *cspace, seL4_CPtr 
         ZF_LOGE("could not find syscall table for c library");
         return 0;
     }
-    proc->fdt = vfsFdt__init();
-    // printf("\nAllocated fdt at %p\n", proc->fdt);
+    process_s.the_proc->fdt = vfsFdt__init();
+    // printf("\nAllocated fdt at %p\n", process_s.the_proc->fdt);
     seL4_Error err;
 
     /* Map the frame to tty's addr and sos's addr  */
-    proc->share_buffer_ut = Process__allocRetype(
-        &proc->share_buffer, seL4_ARM_SmallPageObject,seL4_PageBits
+    process_s.the_proc->share_buffer_ut = Process__allocRetype(
+        &process_s.the_proc->share_buffer, seL4_ARM_SmallPageObject,seL4_PageBits
     );
-    if (proc->share_buffer_ut == NULL) {
+    if (process_s.the_proc->share_buffer_ut == NULL) {
         ZF_LOGE("Failed to alloc share buffer ut");
         return false;
     }
     err = sos_map_frame(
-        cspace, proc->share_buffer, proc->vspace, 
+        cspace, process_s.the_proc->share_buffer, process_s.the_proc->vspace, 
         PROCESS_IPC_BUFFER + PAGE_SIZE_4K, seL4_AllRights,
         seL4_ARM_Default_VMAttributes
     );
@@ -126,19 +128,19 @@ static uintptr_t Process__initStack(sos_pcb_t proc, cspace_t *cspace, seL4_CPtr 
 
     err = cspace_copy(
         cspace, local_share_buff_cptr, cspace,
-        proc->share_buffer, seL4_AllRights);
+        process_s.the_proc->share_buffer, seL4_AllRights);
     if (err != seL4_NoError) {
         cspace_free_slot(cspace, local_share_buff_cptr);
         ZF_LOGE("Failed to copy cap");
         return 0;
     }
 
-    proc->share_buffer_vaddr = get_new_share_buff_vaddr();
+    process_s.the_proc->share_buffer_vaddr = get_new_share_buff_vaddr();
     err = sos_map_frame(
         cspace, local_share_buff_cptr, local_vspace,
-        (seL4_Word) proc->share_buffer_vaddr, seL4_AllRights,
+        (seL4_Word) process_s.the_proc->share_buffer_vaddr, seL4_AllRights,
         seL4_ARM_Default_VMAttributes);
-    // printf("share Buff vaddr %p\n", proc->share_buffer_vaddr);
+    // printf("share Buff vaddr %p\n", process_s.the_proc->share_buffer_vaddr);
     if (err != seL4_NoError) {
         ZF_LOGE("\n\n\nUnable to map share buff to sos vaddr");
         cspace_delete(cspace, local_share_buff_cptr);
@@ -152,23 +154,23 @@ static uintptr_t Process__initStack(sos_pcb_t proc, cspace_t *cspace, seL4_CPtr 
     {
         seL4_CPtr memcap;
 
-        proc->stack_ut = Process__allocRetype(
+        process_s.the_proc->stack_ut = Process__allocRetype(
             &memcap, seL4_ARM_SmallPageObject, seL4_PageBits
         );
-        if (proc->stack_ut == NULL) {
+        if (process_s.the_proc->stack_ut == NULL) {
             ZF_LOGE("Failed to allocate stack");
             return 0;
         }
 
         if (i == 0)
         {
-            proc->stack = memcap;
+            process_s.the_proc->stack = memcap;
         }
         stack_bottom -= PAGE_SIZE_4K;
         
         /* Map in the stack frame for the user app */
         err = sos_map_frame(
-            cspace, memcap, proc->vspace, stack_bottom,
+            cspace, memcap, process_s.the_proc->vspace, stack_bottom,
             seL4_AllRights, seL4_ARM_Default_VMAttributes
         );
         if (err != 0) {
@@ -185,7 +187,7 @@ static uintptr_t Process__initStack(sos_pcb_t proc, cspace_t *cspace, seL4_CPtr 
     }
 
     /* copy the stack frame cap into the slot */
-    err = cspace_copy(cspace, local_stack_cptr, cspace, proc->stack, seL4_AllRights);
+    err = cspace_copy(cspace, local_stack_cptr, cspace, process_s.the_proc->stack, seL4_AllRights);
     if (err != seL4_NoError) {
         cspace_free_slot(cspace, local_stack_cptr);
         ZF_LOGE("Failed to copy cap");
@@ -249,35 +251,32 @@ static uintptr_t Process__initStack(sos_pcb_t proc, cspace_t *cspace, seL4_CPtr 
     return stack_top;
 }
 
-
-
 /* Start the first process, and return true if successful
  *
  * This function will leak memory if the process does not start successfully.
  * TODO: avoid leaking memory once you implement real processes, otherwise a user
  *       can force your OS to run out of memory by creating lots of failed processes.
  */
-bool Proccess__startProcess(char *app_name, seL4_CPtr ep)
+bool Process__startProc(char *app_name, seL4_CPtr ep)
 {
     /* Create a VSpace */
-    struct sos_pcb the_process;
-    the_process.vspace_ut = Process__allocRetype(
-        &the_process.vspace, seL4_ARM_PageGlobalDirectoryObject,
+    process_s.the_proc->vspace_ut = Process__allocRetype(
+        &process_s.the_proc->vspace, seL4_ARM_PageGlobalDirectoryObject,
         seL4_PGDBits
     );
-    if (the_process.vspace_ut == NULL) {
+    if (process_s.the_proc->vspace_ut == NULL) {
         return false;
     }
 
     /* assign the vspace to an asid pool */
-    seL4_Word err = seL4_ARM_ASIDPool_Assign(seL4_CapInitThreadASIDPool, the_process.vspace);
+    seL4_Word err = seL4_ARM_ASIDPool_Assign(seL4_CapInitThreadASIDPool, process_s.the_proc->vspace);
     if (err != seL4_NoError) {
         ZF_LOGE("Failed to assign asid pool");
         return false;
     }
 
     /* Create a simple 1 level CSpace */
-    err = cspace_create_one_level(process_s.cspace, &the_process.cspace);
+    err = cspace_create_one_level(process_s.cspace, &process_s.the_proc->cspace);
     if (err != CSPACE_NOERROR) {
         ZF_LOGE("Failed to create cspace");
         return false;
@@ -288,9 +287,9 @@ bool Proccess__startProcess(char *app_name, seL4_CPtr ep)
     if (frame == NULL_FRAME){
         ZF_LOGE("Fail to map frame to sos\n");
     }
-    the_process.ipc_buffer = cspace_alloc_slot(process_s.cspace);
+    process_s.the_proc->ipc_buffer = cspace_alloc_slot(process_s.cspace);
     err = cspace_copy(
-        process_s.cspace, the_process.ipc_buffer, frame_table_cspace(),
+        process_s.cspace, process_s.the_proc->ipc_buffer, frame_table_cspace(),
         frame_page(frame), seL4_AllRights
     );
     if (frame == NULL_FRAME){
@@ -301,54 +300,52 @@ bool Proccess__startProcess(char *app_name, seL4_CPtr ep)
     /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into --
      * the badge is used to identify the process, which will come in handy when you have multiple
      * processes. */
-    seL4_CPtr user_ep = cspace_alloc_slot(&the_process.cspace);
+    seL4_CPtr user_ep = cspace_alloc_slot(&process_s.the_proc->cspace);
     if (user_ep == seL4_CapNull) {
         ZF_LOGE("Failed to alloc user ep slot");
         return false;
     }
 
     /* now mutate the cap, thereby setting the badge */
-    err = cspace_mint(&the_process.cspace, user_ep, process_s.cspace, ep, seL4_AllRights, TTY_EP_BADGE);
+    err = cspace_mint(&process_s.the_proc->cspace, user_ep, process_s.cspace, ep, seL4_AllRights, TTY_EP_BADGE);
     if (err) {
         ZF_LOGE("Failed to mint user ep");
         return false;
     }
 
     /* Create a new TCB object */
-    the_process.tcb_ut = Process__allocRetype(&the_process.tcb, seL4_TCBObject, seL4_TCBBits);
-    if (the_process.tcb_ut == NULL) {
+    process_s.the_proc->tcb_ut = Process__allocRetype(&process_s.the_proc->tcb, seL4_TCBObject, seL4_TCBBits);
+    if (process_s.the_proc->tcb_ut == NULL) {
         ZF_LOGE("Failed to alloc tcb ut");
         return false;
     }
 
     /* Configure the TCB */
-    err = seL4_TCB_Configure(the_process.tcb, user_ep,
-                             the_process.cspace.root_cnode, seL4_NilData,
-                             the_process.vspace, seL4_NilData, PROCESS_IPC_BUFFER,
-                             the_process.ipc_buffer);
+    err = seL4_TCB_Configure(process_s.the_proc->tcb, user_ep,
+                             process_s.the_proc->cspace.root_cnode, seL4_NilData,
+                             process_s.the_proc->vspace, seL4_NilData, PROCESS_IPC_BUFFER,
+                             process_s.the_proc->ipc_buffer);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to configure new TCB");
         return false;
     }
 
     /* Set the priority */
-    err = seL4_TCB_SetPriority(the_process.tcb, seL4_CapInitThreadTCB, TTY_PRIORITY);
+    err = seL4_TCB_SetPriority(process_s.the_proc->tcb, seL4_CapInitThreadTCB, TTY_PRIORITY);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to set priority of new TCB");
         return false;
     }
 
     /* Provide a name for the thread -- Helpful for debugging */
-    NAME_THREAD(the_process.tcb, app_name);
+    NAME_THREAD(process_s.the_proc->tcb, app_name);
 
     /* parse the cpio image */
     ZF_LOGI("\nStarting \"%s\"...\n", app_name);
     elf_t elf_file = {};
     unsigned long elf_size;
-    size_t cpio_len =process_s.cpio_archive_end -process_s.cpio_archive;
-    char *elf_base = cpio_get_file(
-        process_s.cpio_archive, cpio_len, app_name, &elf_size
-    );
+    size_t cpio_len = process_s.cpio_archive_end - process_s.cpio_archive;
+    char *elf_base = cpio_get_file(process_s.cpio_archive, cpio_len, app_name, &elf_size);
     if (elf_base == NULL) {
         ZF_LOGE("Unable to locate cpio header for %s", app_name);
         return false;
@@ -360,19 +357,17 @@ bool Proccess__startProcess(char *app_name, seL4_CPtr ep)
     }
 
     /* set up the stack */
-    seL4_Word sp = Process__initStack(
-        &the_process, process_s.cspace, seL4_CapInitThreadVSpace, &elf_file
-    );
+    seL4_Word sp = init_process_stack(process_s.cspace, seL4_CapInitThreadVSpace, &elf_file);
 
     /* load the elf image from the cpio file */
-    err = elf_load(process_s.cspace, the_process.vspace, &elf_file);
+    err = elf_load(process_s.cspace, process_s.the_proc->vspace, &elf_file);
     if (err) {
         ZF_LOGE("Failed to load elf image");
         return false;
     }
 
     /* Map in the IPC buffer for the thread */
-    err = sos_map_frame(process_s.cspace, the_process.ipc_buffer, the_process.vspace, PROCESS_IPC_BUFFER,
+    err = sos_map_frame(process_s.cspace, process_s.the_proc->ipc_buffer, process_s.the_proc->vspace, PROCESS_IPC_BUFFER,
                     seL4_AllRights, seL4_ARM_Default_VMAttributes);
     if (err != 0) {
         ZF_LOGE("Unable to map IPC buffer for user app");
@@ -385,7 +380,14 @@ bool Proccess__startProcess(char *app_name, seL4_CPtr ep)
         .sp = sp,
     };
     // printf("Starting ttytest at %p\n", (void *) context.pc);
-    err = seL4_TCB_WriteRegisters(the_process.tcb, 1, 0, 2, &context);
+    err = seL4_TCB_WriteRegisters(process_s.the_proc->tcb, 1, 0, 2, &context);
     ZF_LOGE_IF(err, "Failed to write registers");
     return err == seL4_NoError;
+}
+sos_pcb_t Process__getTheProc(){
+    return process_s.the_proc;
+}
+
+sos_pcb_t Process__getPcbByPid(uint32_t pid){
+    return DynamicArr__get(process_s.procArr, pid - 1);
 }
