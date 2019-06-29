@@ -6,7 +6,7 @@
 #include "vmem_layout.h"
 #include "vfs.h"
 
-struct tcb{
+struct sos_pcb{
     ut_t *tcb_ut;
     seL4_CPtr tcb;
     ut_t *vspace_ut;
@@ -27,7 +27,7 @@ struct tcb{
     FDT_t fdt;
 };
 
-typedef struct tcb * tcb_t;
+typedef struct sos_pcb * sos_pcb_t;
 
 // global share buff addr incrementor
 void * get_new_share_buff_vaddr();

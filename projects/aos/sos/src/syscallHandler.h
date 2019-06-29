@@ -17,7 +17,7 @@ struct syscallMessage_s
     seL4_CPtr replyCap;
     // first is syscall, so we only need to trap three MR 
     seL4_Word words[3];
-    tcb_t tcb;
+    sos_pcb_t tcb;
     uint64_t event_id;
 };
 

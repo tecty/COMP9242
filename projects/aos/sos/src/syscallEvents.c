@@ -12,7 +12,7 @@ static struct
     DynamicArr_t messageArr;
     DynamicQ_t   messageQ;
     // legacy when doing process
-    tcb_t        the_process;
+    sos_pcb_t        the_process;
 } sysEvent;
 
 struct syscallEvent_s
@@ -23,7 +23,7 @@ struct syscallEvent_s
 
 typedef struct syscallEvent_s * syscallEvent_t;
 
-void syscallEvents__init(cspace_t * cspace, tcb_t the_process){
+void syscallEvents__init(cspace_t * cspace, sos_pcb_t the_process){
     /* Init the DT */
     sysEvent.messageArr  = DynamicArr__init(sizeof(struct syscallEvent_s));
     sysEvent.messageQ    = DynamicQ__init(sizeof(uint64_t));

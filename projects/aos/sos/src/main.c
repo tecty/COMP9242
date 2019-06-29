@@ -89,7 +89,7 @@ extern void (__register_frame)(void *);
 static cspace_t cspace;
 
 /* the one process we start */
-static struct tcb tty_test_process;
+static struct sos_pcb tty_test_process;
 
 NORETURN void syscall_loop(seL4_CPtr ep)
 {
