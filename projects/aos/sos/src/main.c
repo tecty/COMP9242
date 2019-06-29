@@ -200,7 +200,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
         return 0;
     }
     tty_test_process.fdt = vfsFdt__init();
-    printf("\nAllocated fdt at %p\n", tty_test_process.fdt);
+    // printf("\nAllocated fdt at %p\n", tty_test_process.fdt);
     seL4_Error err;
 
     /* Map the frame to tty's addr and sos's addr  */
@@ -238,7 +238,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
         cspace, local_share_buff_cptr, local_vspace,
         (seL4_Word) tty_test_process.share_buffer_vaddr, seL4_AllRights,
         seL4_ARM_Default_VMAttributes);
-    printf("share Buff vaddr %p\n", tty_test_process.share_buffer_vaddr);
+    // printf("share Buff vaddr %p\n", tty_test_process.share_buffer_vaddr);
     if (err != seL4_NoError) {
         ZF_LOGE("\n\n\nUnable to map share buff to sos vaddr");
         cspace_delete(cspace, local_share_buff_cptr);
@@ -492,7 +492,7 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
         .pc = elf_getEntryPoint(&elf_file),
         .sp = sp,
     };
-    printf("Starting ttytest at %p\n", (void *) context.pc);
+    // printf("Starting ttytest at %p\n", (void *) context.pc);
     err = seL4_TCB_WriteRegisters(tty_test_process.tcb, 1, 0, 2, &context);
     ZF_LOGE_IF(err, "Failed to write registers");
     return err == seL4_NoError;
@@ -609,7 +609,6 @@ NORETURN void *main_continued(UNUSED void *arg)
     ZF_LOGF_IF(!success, "Failed to start first process");
 
     
-    printf("init the Syscall Message Queue\n");
 
     // init the syscall table and routine 
     // syscallHandler__init(&cspace);

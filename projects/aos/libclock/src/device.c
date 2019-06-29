@@ -42,7 +42,7 @@ static timeout_info_t timeouts[] = {
 void configure_timestamp(volatile meson_timer_reg_t *regs, timestamp_timebase_t timebase)
 {
     uint32_t mux = regs->mux;
-    printf("mux pointer:%p\n", &(regs-> mux));
+    // printf("mux pointer:%p\n", &(regs-> mux));
 
     mux &= ~(TIMESTAMP_TIMEBASE_MASK << TIMER_E_INPUT_CLK);
     mux |= timebase << TIMER_E_INPUT_CLK;
