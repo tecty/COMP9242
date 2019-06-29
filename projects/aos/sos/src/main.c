@@ -70,12 +70,6 @@
 #define TTY_PRIORITY         (0)
 #define TTY_EP_BADGE         (101)
 
-/*
- * A dummy starting syscall
- */
-#define SOS_SYSCALL0 0
-
-
 
 /* The linker will link this symbol to the start address  *
  * of an archive of attached applications.                */
