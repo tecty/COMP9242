@@ -71,9 +71,10 @@ static inline seL4_CapRights_t get_sel4_rights_from_elf(unsigned long permission
  * @return
  *
  */
-static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loadee, char *src, size_t segment_size,
-                                    size_t file_size, uintptr_t dst, seL4_CapRights_t permissions)
-{
+static int load_segment_into_vspace(
+    cspace_t *cspace, seL4_CPtr loadee, char *src, size_t segment_size,
+    size_t file_size, uintptr_t dst, seL4_CapRights_t permissions
+){
     assert(file_size <= segment_size);
 
     /* We work a page at a time in the destination vspace. */

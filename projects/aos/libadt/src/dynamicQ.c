@@ -85,14 +85,14 @@ void DynamicQ__deQueue(DynamicQ_t dq){
 void DynamicQ__free(DynamicQ_t dq){
     free(dq->item_arr);
     free(dq);
+
+
 }
 
-typedef struct
-{
-    uint64_t end_stamp;
-    uint64_t callback;
-    void * data; 
-    // if someone want to disable some clock
-    // this is the word 
-    bool enabled;
-} Timer_t;
+void DynamicQ__forAll(DynamicQ_t dq, dynamicQ_callback_t callback){
+    void * data;
+    while ((data = DynamicQ__first(dq)) && data != NULL){
+        callback(data);
+        DynamicQ__deQueue(dq) ;
+    }
+}

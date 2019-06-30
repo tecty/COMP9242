@@ -8,6 +8,8 @@
 #include <stdint.h>
 
 typedef struct DynamicQ_s * DynamicQ_t ;
+typedef void (* dynamicQ_callback_t)(void * data);
+
 
 DynamicQ_t DynamicQ__init(uint64_t item_size);
 void DynamicQ__enQueue(DynamicQ_t dq,void * data);
