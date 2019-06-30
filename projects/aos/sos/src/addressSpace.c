@@ -1,8 +1,9 @@
 #include "addressSpace.h"
 #include <assert.h>
+#include "frame_table.h"
 
-#define BIT(n) (1ul << (n))
-#define MASK(n) (BIT(n)-1ul)
+// #define BIT(n) (1ul << (n))
+// #define MASK(n) (BIT(n)-1ul)
 
 struct addressSpace_s
 {
@@ -15,10 +16,11 @@ struct addressSpace_s
 /* Private */
 uint64_t * AddressSpace__allocPageTable(addressSpace_t ast){
     // TODO: this map be redifine by frametable 
-    uint64_t * ret =  malloc(BIT(12));
-    memset(ret, 0, BIT(12));
+    frame_ref_t  ref = alloc_frame();
+    uint64_t * ret = (void *) frame_data(ref);
+    memset(ret, 0, 0x1000);
     // we need the pointer to be recorded 
-    DynamicQ__enQueue(ast->pageList , &ret);
+    DynamicQ__enQueue(ast->pageList , &ref);
     return ret;
 }
 
@@ -40,7 +42,7 @@ static inline uint16_t AddressSpace__shiftBits(uint16_t depth){
 static inline uint16_t AddressSpace__getIndexByVaddr(void * vaddr, uint16_t depth){
     depth = 3 - depth;
     // calculate the mask
-    uint64_t mask = MASK(9) << AddressSpace__shiftBits(depth);
+    uint64_t mask = ((1<<9) -1) << AddressSpace__shiftBits(depth);
     // calculate this index 
     uint64_t this_index = (uint64_t) vaddr;
     this_index &= mask;
@@ -109,18 +111,15 @@ bool AddressSpace__isInAdddrSpace(addressSpace_t ast, void* vaddr){
 }
 
 void AddressSpace__free(addressSpace_t ast){
-    uint64_t * page_addr = 0;
-    void * queue_first = NULL;
+    // uint64_t * page_addr = 0;
+    frame_ref_t * queue_first;
 
     /* free all the data in the queue */
     while( 
         (queue_first = DynamicQ__first(ast->pageList)) &&
         queue_first != NULL
     ){
-        page_addr = * (void **) queue_first;
-
-        // TODO: change to free frame
-        free(page_addr);
+        free_frame(* queue_first);
         DynamicQ__deQueue(ast->pageList);
     }
 

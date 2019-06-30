@@ -87,6 +87,44 @@ seL4_CPtr Process__allocFrameCap(sos_pcb_t proc, cspace_t * cspace){
     return ret;
 }
 
+seL4_Error Process__allocMapIn(sos_pcb_t proc, seL4_Word vaddr){
+    /* Map the frame to tty's addr and sos's addr  */
+    frame_ref_t frame_d = alloc_frame();
+    if (frame_d == NULL_FRAME){
+        return 1;
+    }
+    seL4_CPtr ret = cspace_alloc_slot(process_s.cspace);
+    
+    seL4_Error err = cspace_copy(
+        process_s.cspace, ret, frame_table_cspace(),
+        frame_page(frame_d), seL4_AllRights
+    );
+    if (err != seL4_NoError){
+        // freee the structurs 
+        free_frame(frame_d);
+        cspace_delete(process_s.cspace, ret);
+        return 1;    
+    }
+    proc->share_buffer = ret;
+    if (proc->share_buffer== seL4_CapNull) return 1;
+    err = sos_map_frame(
+        proc->utList,
+        process_s.cspace, proc->share_buffer, proc->vspace, 
+        vaddr, seL4_AllRights,
+        seL4_ARM_Default_VMAttributes
+    );
+    if (err != 0) {
+        ZF_LOGE("Unable to share buff for user app");
+        return 1;
+    }
+    // record it in address space 
+    AddressSpace__mapVaddr(
+        proc->addressSpace, (void *) frame_d, (void *) vaddr
+    );
+
+    return 0;
+}
+
 
 /* helper to allocate a ut + cslot, and retype the ut into the cslot */
 static ut_t *Process__allocRetype(sos_pcb_t proc, seL4_CPtr *cptr, seL4_Word type, size_t size_bits)
@@ -255,9 +293,11 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
 {
     /* Create a VSpace */
     struct sos_pcb the_proc;
-    the_proc.utList    = DynamicQ__init(sizeof(ut_t *));
-    the_proc.capList   = DynamicQ__init(sizeof(seL4_CPtr));
-    the_proc.frameList = DynamicQ__init(sizeof(frame_ref_t));
+    the_proc.utList       = DynamicQ__init(sizeof(ut_t *));
+    the_proc.capList      = DynamicQ__init(sizeof(seL4_CPtr));
+    the_proc.frameList    = DynamicQ__init(sizeof(frame_ref_t));
+    the_proc.addressSpace = AddressSpace__init();
+
 
     the_proc.vspace_ut = Process__allocRetype(
         &the_proc, &the_proc.vspace, seL4_ARM_PageGlobalDirectoryObject,
@@ -378,9 +418,25 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
         return 0;
     }
 
-
+    // TODO: Mapin
     /* Map the frame to tty's addr and sos's addr  */
-    the_proc.share_buffer = Process__allocFrameCap(&the_proc, process_s.cspace);
+    frame_ref_t frame_d = alloc_frame();
+    if (frame_d == NULL_FRAME){
+        return 0;
+    }
+    seL4_CPtr ret = cspace_alloc_slot(process_s.cspace);
+    
+    err = cspace_copy(
+        process_s.cspace, ret, frame_table_cspace(),
+        frame_page(frame_d), seL4_AllRights
+    );
+    if (err != seL4_NoError){
+        // freee the structurs 
+        free_frame(frame_d);
+        cspace_delete(process_s.cspace, ret);
+        return 0;    
+    }
+    the_proc.share_buffer = ret;
     if (the_proc.share_buffer== seL4_CapNull) return 0;
     err = sos_map_frame(
         the_proc.utList,
@@ -392,13 +448,23 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
         ZF_LOGE("Unable to share buff for user app");
         return 0;
     }
+    // record it in address space 
+    AddressSpace__mapVaddr(
+        the_proc.addressSpace, (void *) frame_d, (void *) PROCESS_IPC_BUFFER + PAGE_SIZE_4K
+    );
+
+    // TODO: Map out
     /* Map the fram into sos addr space */
+    frame_ref_t new_frame_d =  (frame_ref_t) AddressSpace__getPaddrByVaddr(
+        the_proc.addressSpace, (void *) PROCESS_IPC_BUFFER + PAGE_SIZE_4K
+    );
+    printf("I have %lu==%lu\n", frame_d, new_frame_d);
     // protential cspace leak, let the vm to handle this 
     seL4_CPtr local_share_buff_cptr = cspace_alloc_slot(process_s.cspace);
 
     err = cspace_copy(
         process_s.cspace, local_share_buff_cptr, process_s.cspace,
-        the_proc.share_buffer, seL4_AllRights);
+        frame_page(frame_d), seL4_AllRights);
     if (err != seL4_NoError) {
         cspace_free_slot(process_s.cspace, local_share_buff_cptr);
         ZF_LOGE("Failed to copy cap");
@@ -426,8 +492,6 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
      * Process routeine
      */
     the_proc.fdt = vfsFdt__init();
-    the_proc.addressSpace = AddressSpace__init();
-
     return DynamicArr__add(process_s.procArr, &the_proc) + 1;
 
     cleanUp: 
