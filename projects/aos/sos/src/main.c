@@ -129,7 +129,10 @@ NORETURN void syscall_loop(seL4_CPtr ep)
             /* some kind of fault */
             debug_print_fault(message, TTY_NAME);
             /* dump registers too */
-            debug_dump_registers(tty_test_process->tcb);
+            // debug_dump_registers(tty_test_process->tcb);
+            // TODO: dynamic 
+            Process_dumpPcbByBadge(badge);
+            
 
             ZF_LOGF("The SOS skeleton does not know how to handle faults!");
         }
@@ -275,14 +278,13 @@ NORETURN void *main_continued(UNUSED void *arg)
     printf("Start first process\n");
     uint32_t pid = Process__startProc(TTY_NAME, ipc_ep);
     tty_test_process = Process__getPcbByPid(pid);
-    // tty_test_process = Process__getTheProc();
-    printf("I have got the pid %u\n", pid);
-    printf("I have got the proc_addr %p\n", tty_test_process);
+    // printf("I have got the pid %u\n", pid);
+    // printf("I have got the proc_addr %p\n", tty_test_process);
     ZF_LOGF_IF(pid == 0, "Failed to start first process");
 
     // init the syscall table and routine 
     // syscallHandler__init(&cspace);
-    syscallEvents__init(&cspace, tty_test_process);
+    syscallEvents__init(&cspace);
 
     printf("\nSOS entering syscall loop\n");
     syscall_loop(ipc_ep);

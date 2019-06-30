@@ -4,7 +4,7 @@
 #include <adt/dynamicQ.h>
 #include <adt/dynamic.h>
 #include "syscallHandler.h"
-void syscallEvents__init(cspace_t * cspace, sos_pcb_t the_process);
+void syscallEvents__init(cspace_t * cspace);
 bool syscallEvents__isEmpty();
 void syscallEvents__deQueue();
 void syscallEvents__finish(uint64_t event_id);

@@ -1,6 +1,6 @@
 #include "syscallEvents.h"
 #include <stdio.h>
-
+#include "process.h"
 /**
  * when event id is 0, that is a virtual event
  * No message is stored in the queue
@@ -11,8 +11,6 @@ static struct
     cspace_t *     rootCspace;
     DynamicArr_t messageArr;
     DynamicQ_t   messageQ;
-    // legacy when doing process
-    sos_pcb_t        the_process;
 } sysEvent;
 
 struct syscallEvent_s
@@ -23,12 +21,11 @@ struct syscallEvent_s
 
 typedef struct syscallEvent_s * syscallEvent_t;
 
-void syscallEvents__init(cspace_t * cspace, sos_pcb_t the_process){
+void syscallEvents__init(cspace_t * cspace){
     /* Init the DT */
     sysEvent.messageArr  = DynamicArr__init(sizeof(struct syscallEvent_s));
     sysEvent.messageQ    = DynamicQ__init(sizeof(uint64_t));
     sysEvent.rootCspace  = cspace;
-    sysEvent.the_process = the_process;
 
     /* Call the handler to init */
     syscallHandler__init(cspace);
@@ -76,7 +73,7 @@ void syscallEvents__enQueue(UNUSED seL4_Word badge, UNUSED int num_args){
     // construct the unify structure to call to handler 
     struct syscallEvent_s event; 
     event.msg.replyCap = reply;
-    event.msg.tcb = sysEvent.the_process;
+    event.msg.tcb = Process__getPcbByBadage(badge);
     event.syscallType  = seL4_GetMR(0);
     event.msg.words[0] = seL4_GetMR(1);
     event.msg.words[1] = seL4_GetMR(2);

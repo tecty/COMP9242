@@ -121,6 +121,7 @@ void AddressSpace__free(addressSpace_t ast){
 
         // TODO: change to free frame
         free(page_addr);
+        DynamicQ__deQueue(ast->pageList);
     }
 
     DynamicQ__free(ast->pageList);

@@ -5,6 +5,8 @@
 #include "ut.h"
 #include "vmem_layout.h"
 #include "vfs.h"
+#include "addressSpace.h"
+
 
 struct sos_pcb{
     ut_t *tcb_ut;
@@ -25,6 +27,7 @@ struct sos_pcb{
     seL4_CPtr stack;
 
     FDT_t fdt;
+    addressSpace_t addressSpace;
 };
 
 typedef struct sos_pcb * sos_pcb_t;
@@ -34,8 +37,11 @@ void Process__init(
 );
 uint32_t Process__startProc(char *app_name, seL4_CPtr ep);
 
+void Process_dumpPcb(uint32_t pid);
 sos_pcb_t Process__getPcbByPid(uint32_t pid);
-sos_pcb_t Process__getTheProc();
+sos_pcb_t Process__getPcbByBadage(uint64_t badage);
+void Process_dumpPcbByBadge(uint64_t badage);
+
 // global share buff addr incrementor
 void * get_new_share_buff_vaddr();
 #endif // PROCESS_H
