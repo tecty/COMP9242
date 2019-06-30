@@ -62,8 +62,7 @@ static seL4_Error retype_map_pd(cspace_t *cspace, seL4_CPtr vspace, seL4_Word va
  * @param empty  an empty slot to retype into a pud
  * @return 0 on success
  */
-static seL4_Error retype_map_pud(cspace_t *cspace, seL4_CPtr vspace, seL4_Word vaddr, seL4_CPtr ut,
-                                 seL4_CPtr empty)
+static seL4_Error retype_map_pud(cspace_t *cspace, seL4_CPtr vspace, seL4_Word vaddr, seL4_CPtr ut, seL4_CPtr empty)
 {
 
     seL4_Error err = cspace_untyped_retype(cspace, ut, empty, seL4_ARM_PageUpperDirectoryObject, seL4_PageBits);

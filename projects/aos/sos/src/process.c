@@ -44,8 +44,32 @@ void Process__init(
     process_s.cpio_archive_end = cpio_archive_end;
 }
 
+seL4_CPtr Process__allocFrameCap(sos_pcb_t proc, cspace_t * cspace){
+    frame_ref_t frame_d = alloc_frame();
+    if (frame_d == NULL_FRAME){
+        return seL4_CapNull;
+    }
+    seL4_CPtr ret = cspace_alloc_slot(cspace);
+    
+    seL4_Word err = cspace_copy(
+        cspace, ret, frame_table_cspace(),
+        frame_page(frame_d), seL4_AllRights
+    );
+    if (err != seL4_NoError){
+        // freee the structurs 
+        free_frame(frame_d);
+        cspace_delete(cspace, ret);
+        return seL4_CapNull;    
+    }
+    // record it 
+    DynamicQ__enQueue(proc->capList, &ret);
+    DynamicQ__enQueue(proc->frameList, & frame_d);
+    return ret;
+}
+
+
 /* helper to allocate a ut + cslot, and retype the ut into the cslot */
-static ut_t *Process__allocRetype(seL4_CPtr *cptr, seL4_Word type, size_t size_bits)
+static ut_t *Process__allocRetype(sos_pcb_t proc, seL4_CPtr *cptr, seL4_Word type, size_t size_bits)
 {
     /* Allocate the object */
     ut_t *ut = ut_alloc(size_bits, process_s.cspace);
@@ -70,7 +94,8 @@ static ut_t *Process__allocRetype(seL4_CPtr *cptr, seL4_Word type, size_t size_b
         cspace_free_slot(process_s.cspace, *cptr);
         return NULL;
     }
-
+    // fail save: record all the alloced ut 
+    DynamicQ__enQueue(proc->utList, & ut);
     return ut;
 }
 
@@ -85,8 +110,6 @@ static int Process__writeStack(seL4_Word *mapped_stack, int index, uintptr_t val
 static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_t *elf_file)
 {
     /* Create a stack frame */
-
-
     /* virtual addresses in the target process' address space */
     uintptr_t stack_top = PROCESS_STACK_TOP;
     // uintptr_t stack_bottom = PROCESS_STACK_TOP - PAGE_SIZE_4K;
@@ -105,13 +128,8 @@ static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_
     seL4_Error err;
 
     /* Map the frame to tty's addr and sos's addr  */
-    proc->share_buffer_ut = Process__allocRetype(
-        &proc->share_buffer, seL4_ARM_SmallPageObject,seL4_PageBits
-    );
-    if (proc->share_buffer_ut == NULL) {
-        ZF_LOGE("Failed to alloc share buffer ut");
-        return 0;
-    }
+    proc->share_buffer = Process__allocFrameCap(proc, process_s.cspace);
+    if (proc->share_buffer== seL4_CapNull) return 0;
     err = sos_map_frame(
         process_s.cspace, proc->share_buffer, proc->vspace, 
         PROCESS_IPC_BUFFER + PAGE_SIZE_4K, seL4_AllRights,
@@ -151,16 +169,7 @@ static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_
 
     for (size_t i = 0; i < 20; i++)
     {
-        seL4_CPtr memcap;
-
-        proc->stack_ut = Process__allocRetype(
-            &memcap, seL4_ARM_SmallPageObject, seL4_PageBits
-        );
-        if (proc->stack_ut == NULL) {
-            ZF_LOGE("Failed to allocate stack");
-            return 0;
-        }
-
+        seL4_CPtr memcap = Process__allocFrameCap(proc,process_s.cspace);
         if (i == 0)
         {
             proc->stack = memcap;
@@ -260,8 +269,12 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
 {
     /* Create a VSpace */
     struct sos_pcb the_proc;
+    the_proc.utList    = DynamicQ__init(sizeof(ut_t *));
+    the_proc.capList   = DynamicQ__init(sizeof(seL4_CPtr));
+    the_proc.frameList = DynamicQ__init(sizeof(frame_ref_t));
+
     the_proc.vspace_ut = Process__allocRetype(
-        &the_proc.vspace, seL4_ARM_PageGlobalDirectoryObject,
+        &the_proc, &the_proc.vspace, seL4_ARM_PageGlobalDirectoryObject,
         seL4_PGDBits
     );
     if (the_proc.vspace_ut == NULL) {
@@ -283,19 +296,8 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     }
 
     /* Create an IPC buffer */
-    frame_ref_t frame = alloc_frame();
-    if (frame == NULL_FRAME){
-        ZF_LOGE("Fail to map frame to sos\n");
-    }
-    the_proc.ipc_buffer = cspace_alloc_slot(process_s.cspace);
-    err = cspace_copy(
-        process_s.cspace, the_proc.ipc_buffer, frame_table_cspace(),
-        frame_page(frame), seL4_AllRights
-    );
-    if (frame == NULL_FRAME){
-        ZF_LOGE("Fail to copy frame cap sos\n");
-    }
-    
+    the_proc.ipc_buffer = Process__allocFrameCap(&the_proc, process_s.cspace);
+    if(the_proc.ipc_buffer == seL4_CapNull) goto cleanUp;  
 
     /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into --
      * the badge is used to identify the process, which will come in handy when you have multiple
@@ -314,7 +316,8 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     }
 
     /* Create a new TCB object */
-    the_proc.tcb_ut = Process__allocRetype(&the_proc.tcb, seL4_TCBObject, seL4_TCBBits);
+    the_proc.tcb_ut = Process__allocRetype(
+        &the_proc, &the_proc.tcb, seL4_TCBObject, seL4_TCBBits);
     if (the_proc.tcb_ut == NULL) {
         ZF_LOGE("Failed to alloc tcb ut");
         return 0;
@@ -367,8 +370,10 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     }
 
     /* Map in the IPC buffer for the thread */
-    err = sos_map_frame(process_s.cspace, the_proc.ipc_buffer, the_proc.vspace, PROCESS_IPC_BUFFER,
-                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
+    err = sos_map_frame(
+        process_s.cspace, the_proc.ipc_buffer, the_proc.vspace, PROCESS_IPC_BUFFER,
+        seL4_AllRights, seL4_ARM_Default_VMAttributes
+    );
     if (err != 0) {
         ZF_LOGE("Unable to map IPC buffer for user app");
         return 0;
@@ -392,6 +397,10 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     the_proc.addressSpace = AddressSpace__init();
 
     return DynamicArr__add(process_s.procArr, &the_proc) + 1;
+
+    cleanUp: 
+    // TODO: add clean up code. modify the dynamicQ
+    return 0;
 }
 
 

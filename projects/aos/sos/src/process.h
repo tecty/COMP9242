@@ -28,7 +28,9 @@ struct sos_pcb{
 
     FDT_t fdt;
     addressSpace_t addressSpace;
-    DynamicQ_t utList; 
+    DynamicQ_t utList;
+    DynamicQ_t capList;
+    DynamicQ_t frameList;
 };
 
 typedef struct sos_pcb * sos_pcb_t;
