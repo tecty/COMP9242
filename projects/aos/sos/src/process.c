@@ -259,24 +259,24 @@ static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_
 uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
 {
     /* Create a VSpace */
-    sos_pcb_t the_proc = malloc(sizeof(struct sos_pcb));
-    the_proc->vspace_ut = Process__allocRetype(
-        &the_proc->vspace, seL4_ARM_PageGlobalDirectoryObject,
+    struct sos_pcb the_proc;
+    the_proc.vspace_ut = Process__allocRetype(
+        &the_proc.vspace, seL4_ARM_PageGlobalDirectoryObject,
         seL4_PGDBits
     );
-    if (the_proc->vspace_ut == NULL) {
+    if (the_proc.vspace_ut == NULL) {
         return 0;
     }
 
     /* assign the vspace to an asid pool */
-    seL4_Word err = seL4_ARM_ASIDPool_Assign(seL4_CapInitThreadASIDPool, the_proc->vspace);
+    seL4_Word err = seL4_ARM_ASIDPool_Assign(seL4_CapInitThreadASIDPool, the_proc.vspace);
     if (err != seL4_NoError) {
         ZF_LOGE("Failed to assign asid pool");
         return 0;
     }
 
     /* Create a simple 1 level CSpace */
-    err = cspace_create_one_level(process_s.cspace, &the_proc->cspace);
+    err = cspace_create_one_level(process_s.cspace, &the_proc.cspace);
     if (err != CSPACE_NOERROR) {
         ZF_LOGE("Failed to create cspace");
         return 0;
@@ -287,9 +287,9 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     if (frame == NULL_FRAME){
         ZF_LOGE("Fail to map frame to sos\n");
     }
-    the_proc->ipc_buffer = cspace_alloc_slot(process_s.cspace);
+    the_proc.ipc_buffer = cspace_alloc_slot(process_s.cspace);
     err = cspace_copy(
-        process_s.cspace, the_proc->ipc_buffer, frame_table_cspace(),
+        process_s.cspace, the_proc.ipc_buffer, frame_table_cspace(),
         frame_page(frame), seL4_AllRights
     );
     if (frame == NULL_FRAME){
@@ -300,45 +300,45 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into --
      * the badge is used to identify the process, which will come in handy when you have multiple
      * processes. */
-    seL4_CPtr user_ep = cspace_alloc_slot(&the_proc->cspace);
+    seL4_CPtr user_ep = cspace_alloc_slot(&the_proc.cspace);
     if (user_ep == seL4_CapNull) {
         ZF_LOGE("Failed to alloc user ep slot");
         return 0;
     }
 
     /* now mutate the cap, thereby setting the badge */
-    err = cspace_mint(&the_proc->cspace, user_ep, process_s.cspace, ep, seL4_AllRights, TTY_EP_BADGE);
+    err = cspace_mint(&the_proc.cspace, user_ep, process_s.cspace, ep, seL4_AllRights, TTY_EP_BADGE);
     if (err) {
         ZF_LOGE("Failed to mint user ep");
         return 0;
     }
 
     /* Create a new TCB object */
-    the_proc->tcb_ut = Process__allocRetype(&the_proc->tcb, seL4_TCBObject, seL4_TCBBits);
-    if (the_proc->tcb_ut == NULL) {
+    the_proc.tcb_ut = Process__allocRetype(&the_proc.tcb, seL4_TCBObject, seL4_TCBBits);
+    if (the_proc.tcb_ut == NULL) {
         ZF_LOGE("Failed to alloc tcb ut");
         return 0;
     }
 
     /* Configure the TCB */
-    err = seL4_TCB_Configure(the_proc->tcb, user_ep,
-                             the_proc->cspace.root_cnode, seL4_NilData,
-                             the_proc->vspace, seL4_NilData, PROCESS_IPC_BUFFER,
-                             the_proc->ipc_buffer);
+    err = seL4_TCB_Configure(the_proc.tcb, user_ep,
+                             the_proc.cspace.root_cnode, seL4_NilData,
+                             the_proc.vspace, seL4_NilData, PROCESS_IPC_BUFFER,
+                             the_proc.ipc_buffer);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to configure new TCB");
         return 0;
     }
 
     /* Set the priority */
-    err = seL4_TCB_SetPriority(the_proc->tcb, seL4_CapInitThreadTCB, TTY_PRIORITY);
+    err = seL4_TCB_SetPriority(the_proc.tcb, seL4_CapInitThreadTCB, TTY_PRIORITY);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to set priority of new TCB");
         return 0;
     }
 
     /* Provide a name for the thread -- Helpful for debugging */
-    NAME_THREAD(the_proc->tcb, app_name);
+    NAME_THREAD(the_proc.tcb, app_name);
 
     /* parse the cpio image */
     ZF_LOGI("\nStarting \"%s\"...\n", app_name);
@@ -357,17 +357,17 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     }
 
     /* set up the stack */
-    seL4_Word sp = init_process_stack(the_proc,seL4_CapInitThreadVSpace, &elf_file);
+    seL4_Word sp = init_process_stack(&the_proc,seL4_CapInitThreadVSpace, &elf_file);
 
     /* load the elf image from the cpio file */
-    err = elf_load(process_s.cspace, the_proc->vspace, &elf_file);
+    err = elf_load(process_s.cspace, the_proc.vspace, &elf_file);
     if (err) {
         ZF_LOGE("Failed to load elf image");
         return 0;
     }
 
     /* Map in the IPC buffer for the thread */
-    err = sos_map_frame(process_s.cspace, the_proc->ipc_buffer, the_proc->vspace, PROCESS_IPC_BUFFER,
+    err = sos_map_frame(process_s.cspace, the_proc.ipc_buffer, the_proc.vspace, PROCESS_IPC_BUFFER,
                     seL4_AllRights, seL4_ARM_Default_VMAttributes);
     if (err != 0) {
         ZF_LOGE("Unable to map IPC buffer for user app");
@@ -380,7 +380,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
         .sp = sp,
     };
     // printf("Starting ttytest at %p\n", (void *) context.pc);
-    err = seL4_TCB_WriteRegisters(the_proc->tcb, 1, 0, 2, &context);
+    err = seL4_TCB_WriteRegisters(the_proc.tcb, 1, 0, 2, &context);
     ZF_LOGE_IF(err, "Failed to write registers");
     if (err != seL4_NoError){
         return 0;
@@ -388,10 +388,10 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     /**
      * Process routeine
      */
-    the_proc->fdt = vfsFdt__init();
-    the_proc->addressSpace = AddressSpace__init();
+    the_proc.fdt = vfsFdt__init();
+    the_proc.addressSpace = AddressSpace__init();
 
-    return DynamicArr__add(process_s.procArr, the_proc) + 1;
+    return DynamicArr__add(process_s.procArr, &the_proc) + 1;
 }
 
 
