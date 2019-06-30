@@ -19,8 +19,9 @@
 
 #include "frame_table.h"
 #include "ut.h"
-#include "mapping.h"
+// #include "mapping.h"
 #include "elfload.h"
+#include "sos_mapping.h"
 
 /*
  * Convert ELF permissions into seL4 permissions.
@@ -72,8 +73,8 @@ static inline seL4_CapRights_t get_sel4_rights_from_elf(unsigned long permission
  *
  */
 static int load_segment_into_vspace(
-    cspace_t *cspace, seL4_CPtr loadee, char *src, size_t segment_size,
-    size_t file_size, uintptr_t dst, seL4_CapRights_t permissions
+    DynamicQ_t utList, cspace_t *cspace, seL4_CPtr loadee, char *src, 
+    size_t segment_size, size_t file_size, uintptr_t dst, seL4_CapRights_t permissions
 ){
     assert(file_size <= segment_size);
 
@@ -105,8 +106,10 @@ static int load_segment_into_vspace(
         }
 
         /* map the frame into the loadee address space */
-        err = map_frame(cspace, loadee_frame, loadee, loadee_vaddr, permissions,
-                        seL4_ARM_Default_VMAttributes);
+        err = sos_map_frame(
+            utList,cspace, loadee_frame, loadee, loadee_vaddr, 
+            permissions,seL4_ARM_Default_VMAttributes
+        );
 
         /* A frame has already been mapped at this address. This occurs when segments overlap in
          * the same frame, which is permitted by the standard. That's fine as we
@@ -165,8 +168,9 @@ static int load_segment_into_vspace(
     return 0;
 }
 
-int elf_load(cspace_t *cspace, seL4_CPtr loadee_vspace, elf_t *elf_file)
-{
+int elf_load(
+    DynamicQ_t utList, cspace_t *cspace, seL4_CPtr loadee_vspace, elf_t *elf_file
+){
 
     int num_headers = elf_getNumProgramHeaders(elf_file);
     for (int i = 0; i < num_headers; i++) {
@@ -185,8 +189,10 @@ int elf_load(cspace_t *cspace, seL4_CPtr loadee_vspace, elf_t *elf_file)
 
         /* Copy it across into the vspace. */
         ZF_LOGD(" * Loading segment %p-->%p\n", (void *) vaddr, (void *)(vaddr + segment_size));
-        int err = load_segment_into_vspace(cspace, loadee_vspace, source_addr, segment_size, file_size, vaddr,
-                                           get_sel4_rights_from_elf(flags));
+        int err = load_segment_into_vspace(
+            utList ,cspace, loadee_vspace, source_addr, segment_size,
+            file_size, vaddr, get_sel4_rights_from_elf(flags)
+        );
         if (err) {
             ZF_LOGE("Elf loading failed!");
             return -1;

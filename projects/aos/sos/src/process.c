@@ -241,8 +241,9 @@ static int Process__writeStack(seL4_Word *mapped_stack, int index, uintptr_t val
 
 /* set up System V ABI compliant stack, so that the process can
  * start up and initialise the C library */
-static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_t *elf_file)
-{
+static uintptr_t init_process_stack(
+    sos_pcb_t proc, seL4_CPtr local_vspace, elf_t *elf_file
+){
     /* Create a stack frame */
     /* virtual addresses in the target process' address space */
     uintptr_t stack_top = PROCESS_STACK_TOP;
@@ -359,6 +360,16 @@ static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_
     return stack_top;
 }
 
+static addressSpace_t Process__addrSpaceInit(){
+    addressSpace_t ret = AddressSpace__init();
+    // we give stak 16 MB
+    AddressSpace__declear(ret, STACK, (void *) PROCESS_STACK_TOP, BIT(24));
+    // we give heap 4K (It can grow as required)
+    AddressSpace__declear(ret, HEAP, (void *) PROCESS_HEAP_BOTTOM, BIT(12));
+    return ret;
+}
+
+
 /* Start the first process, and return true if successful
  *
  * This function will leak memory if the process does not start successfully.
@@ -372,7 +383,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     the_proc.utList       = DynamicQ__init(sizeof(ut_t *));
     the_proc.capList      = DynamicQ__init(sizeof(seL4_CPtr));
     the_proc.frameList    = DynamicQ__init(sizeof(frame_ref_t));
-    the_proc.addressSpace = AddressSpace__init();
+    the_proc.addressSpace = Process__addrSpaceInit();
 
 
     the_proc.vspace_ut = Process__allocRetype(
@@ -465,7 +476,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     seL4_Word sp = init_process_stack(&the_proc,seL4_CapInitThreadVSpace, &elf_file);
 
     /* load the elf image from the cpio file */
-    err = elf_load(process_s.cspace, the_proc.vspace, &elf_file);
+    err = elf_load(the_proc.utList, process_s.cspace, the_proc.vspace, &elf_file);
     if (err) {
         ZF_LOGE("Failed to load elf image");
         return 0;

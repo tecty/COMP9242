@@ -110,6 +110,14 @@ bool AddressSpace__isInAdddrSpace(addressSpace_t ast, void* vaddr){
     return AddressRegion__isInRegion(ast->regions, vaddr) > 0;
 }
 
+void AddressSpace__declear(
+    addressSpace_t ast, enum addressRegionTypes_e type,
+    void * start, uint64_t size
+){
+    AddressRegion__declare(ast->regions, type, start, size);
+}
+
+
 void AddressSpace__free(addressSpace_t ast){
     // uint64_t * page_addr = 0;
     frame_ref_t * queue_first;

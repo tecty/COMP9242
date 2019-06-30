@@ -17,6 +17,10 @@ void AddressSpace__mapVaddr(
 );
 void *AddressSpace__getPaddrByVaddr(addressSpace_t ast, void * vaddr);
 bool AddressSpace__isInAdddrSpace(addressSpace_t ast, void* vaddr);
+void AddressSpace__declear(
+    addressSpace_t ast, enum addressRegionTypes_e type,
+    void * start, uint64_t size
+);
 void AddressSpace__free(addressSpace_t ast);
 
 
