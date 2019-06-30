@@ -12,7 +12,7 @@
 #include <sel4/sel4.h>
 #include <sel4/sel4_arch/mapping.h>
 
-#include "mapping.h"
+#include "sos_mapping.h"
 #include "ut.h"
 #include "vmem_layout.h"
 
@@ -73,8 +73,8 @@ static seL4_Error retype_map_pud(cspace_t *cspace, seL4_CPtr vspace, seL4_Word v
 }
 
 static seL4_Error sos_map_frame_impl(
-    cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
-    seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
+    DynamicQ_t utList, cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, 
+    seL4_Word vaddr, seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
     seL4_CPtr *free_slots, seL4_Word *used
 ){
     /* Attempt the mapping */
@@ -90,6 +90,8 @@ static seL4_Error sos_map_frame_impl(
             ZF_LOGE("Out of 4k untyped");
             return -1;
         }
+        // track this ut 
+        DynamicQ__enQueue(utList, &ut);
 
         /* figure out which cptr to use to retype into*/
         seL4_CPtr slot;
@@ -127,21 +129,22 @@ static seL4_Error sos_map_frame_impl(
     return err;
 }
 
-seL4_Error sos_map_frame_cspace(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
-                            seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
-                            seL4_CPtr free_slots[MAPPING_SLOTS], seL4_Word *used)
-{
-    if (cspace == NULL) {
-        ZF_LOGE("Invalid arguments");
-        return -1;
-    }
-    return sos_map_frame_impl(cspace, frame_cap, vspace, vaddr, rights, attr, free_slots, used);
-}
+// seL4_Error sos_map_frame_cspace(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
+//                             seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
+//                             seL4_CPtr free_slots[MAPPING_SLOTS], seL4_Word *used)
+// {
+//     if (cspace == NULL) {
+//         ZF_LOGE("Invalid arguments");
+//         return -1;
+//     }
+//     return sos_map_frame_impl(cspace, frame_cap, vspace, vaddr, rights, attr, free_slots, used);
+// }
 
-seL4_Error sos_map_frame(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
-                     seL4_CapRights_t rights, seL4_ARM_VMAttributes attr)
-{
-    return sos_map_frame_impl(cspace, frame_cap, vspace, vaddr, rights, attr, NULL, NULL);
+seL4_Error sos_map_frame(
+    DynamicQ_t utList, cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, 
+    seL4_Word vaddr, seL4_CapRights_t rights, seL4_ARM_VMAttributes attr
+){
+    return sos_map_frame_impl(utList,cspace, frame_cap, vspace, vaddr, rights, attr, NULL, NULL);
 }
 
 

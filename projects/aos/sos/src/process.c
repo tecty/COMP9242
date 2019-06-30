@@ -14,6 +14,7 @@
 #include "frame_table.h"
 #include "vfs.h"
 #include "syscallEvents.h"
+#include <adt/contRegion.h>
 
 #include <stdio.h>
 
@@ -27,7 +28,14 @@ static struct {
     DynamicArr_t procArr;
     char * cpio_archive;
     char * cpio_archive_end;
+    DynamicQ_t sosUtList;
 } process_s;
+
+struct sos_mapped_region
+{
+    DynamicQ_t utList;
+    ContinueRegion_Region_t crrt;
+};
 
 void * get_new_share_buff_vaddr(){
     seL4_Word ret = share_buff_curr;
@@ -35,11 +43,23 @@ void * get_new_share_buff_vaddr(){
     return (void *) ret;
 }
 
+void * Process__getShareRegionStart(sos_pcb_t proc){
+    return (void *) (
+        SOS_SHARE_BUF_START +
+        BIT(12) * ContinueRegionRegion__getStart(proc->shareRegion->crrt)
+    );
+}
+uint64_t Process__getShareRegionSize(sos_pcb_t proc){
+    return BIT(12) * ContinueRegionRegion__getSize(proc->shareRegion->crrt);
+}
+
+
 void Process__init(
     cspace_t * cspace, char * cpio_archive, char* cpio_archive_end
 ){
     process_s.cspace           = cspace;
     process_s.procArr          = DynamicArr__init(sizeof(struct sos_pcb));
+    process_s.sosUtList        = DynamicQ__init(sizeof(ut_t *));
     process_s.cpio_archive     = cpio_archive;
     process_s.cpio_archive_end = cpio_archive_end;
 }
@@ -127,43 +147,7 @@ static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_
     // printf("\nAllocated fdt at %p\n", process_s.the_proc->fdt);
     seL4_Error err;
 
-    /* Map the frame to tty's addr and sos's addr  */
-    proc->share_buffer = Process__allocFrameCap(proc, process_s.cspace);
-    if (proc->share_buffer== seL4_CapNull) return 0;
-    err = sos_map_frame(
-        process_s.cspace, proc->share_buffer, proc->vspace, 
-        PROCESS_IPC_BUFFER + PAGE_SIZE_4K, seL4_AllRights,
-        seL4_ARM_Default_VMAttributes
-    );
-    if (err != 0) {
-        ZF_LOGE("Unable to share buff for user app");
-        return 0;
-    }
-    /* Map the fram into sos addr space */
-    // protential cspace leak, let the vm to handle this 
-    seL4_CPtr local_share_buff_cptr = cspace_alloc_slot(process_s.cspace);
-
-    err = cspace_copy(
-        process_s.cspace, local_share_buff_cptr, process_s.cspace,
-        proc->share_buffer, seL4_AllRights);
-    if (err != seL4_NoError) {
-        cspace_free_slot(process_s.cspace, local_share_buff_cptr);
-        ZF_LOGE("Failed to copy cap");
-        return 0;
-    }
-
-    proc->share_buffer_vaddr = get_new_share_buff_vaddr();
-    err = sos_map_frame(
-        process_s.cspace, local_share_buff_cptr, local_vspace,
-        (seL4_Word) proc->share_buffer_vaddr, seL4_AllRights,
-        seL4_ARM_Default_VMAttributes);
-    // printf("share Buff vaddr %p\n", proc->share_buffer_vaddr);
-    if (err != seL4_NoError) {
-        ZF_LOGE("\n\n\nUnable to map share buff to sos vaddr");
-        cspace_delete(process_s.cspace, local_share_buff_cptr);
-        cspace_free_slot(process_s.cspace, local_share_buff_cptr);
-        return 0;
-    }
+    
 
 
 
@@ -178,6 +162,7 @@ static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_
         
         /* Map in the stack frame for the user app */
         err = sos_map_frame(
+            proc->utList,
             process_s.cspace, memcap, proc->vspace, stack_bottom,
             seL4_AllRights, seL4_ARM_Default_VMAttributes
         );
@@ -203,7 +188,8 @@ static uintptr_t init_process_stack(sos_pcb_t proc, seL4_CPtr local_vspace, elf_
     }
 
     /* map it into the sos address space */
-    err = sos_map_frame(process_s.cspace, local_stack_cptr, local_vspace, local_stack_bottom, seL4_AllRights,
+    err = sos_map_frame(
+        process_s.sosUtList,process_s.cspace, local_stack_cptr, local_vspace, local_stack_bottom, seL4_AllRights,
                     seL4_ARM_Default_VMAttributes);
     if (err != seL4_NoError) {
         cspace_delete(process_s.cspace, local_stack_cptr);
@@ -371,6 +357,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
 
     /* Map in the IPC buffer for the thread */
     err = sos_map_frame(
+        the_proc.utList,
         process_s.cspace, the_proc.ipc_buffer, the_proc.vspace, PROCESS_IPC_BUFFER,
         seL4_AllRights, seL4_ARM_Default_VMAttributes
     );
@@ -390,6 +377,51 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     if (err != seL4_NoError){
         return 0;
     }
+
+
+    /* Map the frame to tty's addr and sos's addr  */
+    the_proc.share_buffer = Process__allocFrameCap(&the_proc, process_s.cspace);
+    if (the_proc.share_buffer== seL4_CapNull) return 0;
+    err = sos_map_frame(
+        the_proc.utList,
+        process_s.cspace, the_proc.share_buffer, the_proc.vspace, 
+        PROCESS_IPC_BUFFER + PAGE_SIZE_4K, seL4_AllRights,
+        seL4_ARM_Default_VMAttributes
+    );
+    if (err != 0) {
+        ZF_LOGE("Unable to share buff for user app");
+        return 0;
+    }
+    /* Map the fram into sos addr space */
+    // protential cspace leak, let the vm to handle this 
+    seL4_CPtr local_share_buff_cptr = cspace_alloc_slot(process_s.cspace);
+
+    err = cspace_copy(
+        process_s.cspace, local_share_buff_cptr, process_s.cspace,
+        the_proc.share_buffer, seL4_AllRights);
+    if (err != seL4_NoError) {
+        cspace_free_slot(process_s.cspace, local_share_buff_cptr);
+        ZF_LOGE("Failed to copy cap");
+        return 0;
+    }
+
+    the_proc.share_buffer_vaddr = get_new_share_buff_vaddr();
+    err = sos_map_frame(
+        process_s.sosUtList,
+        process_s.cspace, local_share_buff_cptr, seL4_CapInitThreadVSpace,
+        (seL4_Word) the_proc.share_buffer_vaddr, seL4_AllRights,
+        seL4_ARM_Default_VMAttributes);
+    // printf("share Buff vaddr %p\n", the_proc.share_buffer_vaddr);
+    if (err != seL4_NoError) {
+        ZF_LOGE("\n\n\nUnable to map share buff to sos vaddr");
+        cspace_delete(process_s.cspace, local_share_buff_cptr);
+        cspace_free_slot(process_s.cspace, local_share_buff_cptr);
+        return 0;
+    }
+
+
+
+
     /**
      * Process routeine
      */

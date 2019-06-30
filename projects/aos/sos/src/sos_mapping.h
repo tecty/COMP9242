@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <sel4/sel4.h>
 #include <cspace/cspace.h>
+#include <adt/dynamicQ.h>
 
 /**
  * Maps a page.
@@ -42,9 +43,11 @@
  *                        e.g if slot 0 is used, BIT(0) in used will be set.
  * @return 0 on success
  */
-seL4_Error sos_map_frame_cspace(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
-                            seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
-                            seL4_CPtr free_slots[MAPPING_SLOTS], seL4_Word *used);
+// seL4_Error sos_map_frame_cspace(
+//     DynamicQ_t utList, cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, 
+//     seL4_Word vaddr,seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
+//     seL4_CPtr free_slots[MAPPING_SLOTS], seL4_Word *used
+// );
 
 
 /* Maps a page, allocating intermediate structures and cslots with the cspace provided.
@@ -66,8 +69,10 @@ seL4_Error sos_map_frame_cspace(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr
  *
  * @return 0 on success
  */
-seL4_Error sos_map_frame(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr, seL4_CapRights_t rights,
-                     seL4_ARM_VMAttributes attr);
+seL4_Error sos_map_frame(
+    DynamicQ_t utList, cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, 
+    seL4_Word vaddr, seL4_CapRights_t rights,seL4_ARM_VMAttributes attr
+);
 
 // /*
 //  * Map a device and return the virtual address it is mapped to.

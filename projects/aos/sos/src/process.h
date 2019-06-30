@@ -7,6 +7,10 @@
 #include "vfs.h"
 #include "addressSpace.h"
 
+typedef struct sos_pcb * sos_pcb_t;
+typedef struct sos_mapped_region * sos_mapped_region_t;
+
+
 
 struct sos_pcb{
     ut_t *tcb_ut;
@@ -31,9 +35,8 @@ struct sos_pcb{
     DynamicQ_t utList;
     DynamicQ_t capList;
     DynamicQ_t frameList;
+    sos_mapped_region_t shareRegion;
 };
-
-typedef struct sos_pcb * sos_pcb_t;
 
 void Process__init(
     cspace_t * cspace, char * cpio_archive, char* cpio_archive_end
