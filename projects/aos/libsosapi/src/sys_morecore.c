@@ -18,6 +18,12 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <sel4/sel4.h>
+
+#define SYSCALL_ENDPOINT_SLOT (1)
+#define SOS_SYS_BRK    7
+
+
 /*
  * Statically allocated morecore area.
  *
@@ -43,15 +49,24 @@ long sys_brk(va_list ap)
     uintptr_t newbrk = va_arg(ap, uintptr_t);
 
     /*if the newbrk is 0, return the bottom of the heap*/
-    if (!newbrk) {
-        ret = morecore_base;
-    } else if (newbrk < morecore_top && newbrk > (uintptr_t)&morecore_area[0]) {
-        ret = morecore_base = newbrk;
-    } else {
-        ret = 0;
+    // if (!newbrk) {
+    //     ret = morecore_base;
+    // } else if (newbrk < morecore_top && newbrk > (uintptr_t)&morecore_area[0]) {
+    //     ret = morecore_base = newbrk;
+    // } else {
+    //     ret = 0;
+    // }
+    if (!newbrk)
+    {
+        return PROCESS_HEAP_BOTTOM;
     }
-
-    return ret;
+    // Else 
+    seL4_MessageInfo_t msg = seL4_MessageInfo_new(0,0,0, 2);
+    seL4_SetMR(0, SOS_SYS_BRK);
+    seL4_SetMR(1, newbrk);
+    seL4_Call( SYSCALL_ENDPOINT_SLOT, msg);
+    return seL4_GetMR(0);
+    
 }
 
 /* Large mallocs will result in muslc calling mmap, so we do a minimal implementation

@@ -115,6 +115,26 @@ static void __syscall_us_sleep(syscallMessage_t msg){
     register_timer(msg->words[0], us_sleep_callback, (void *) msg);
 }
 
+
+static void __syscall_sys_brk(syscallMessage_t msg){
+    seL4_Word ret;
+
+    // error by return 0  eg. over 122kB
+    if (!Proccess__increaseHeap(msg->tcb,(void *) msg->words[0])){
+        ret = 0;
+    } else {
+        ret = msg->words[0];
+    }
+
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+    /* Set the first (and only) word in the message to 0 */
+    seL4_SetMR(0, ret);
+    /* Send the reply to the saved reply capability. */
+    seL4_Send(msg->replyCap, reply_msg);
+    // finish it by calling a callback 
+    syscallEvents__finish(msg->event_id);
+}
+
 void syscallHandler__init(cspace_t *cspace){
     rootCspace = cspace;
     for (size_t i = 0; i < SYSCALL_MAX; i++){
@@ -129,6 +149,7 @@ void syscallHandler__init(cspace_t *cspace){
     handles[SOS_READ]      = __syscall_read;
     handles[SOS_TIMESTAMP] = __syscall_timestamp;
     handles[SOS_US_SLEEP]  = __syscall_us_sleep;
+    handles[SOS_SYS_BRK]   = __syscall_sys_brk;
 
 }
 

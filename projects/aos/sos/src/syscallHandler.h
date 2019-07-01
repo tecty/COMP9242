@@ -44,6 +44,7 @@ void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg);
 #define SOS_READ       4
 #define SOS_TIMESTAMP  5
 #define SOS_US_SLEEP   6
+#define SOS_SYS_BRK    7
 
 
 
