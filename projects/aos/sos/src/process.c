@@ -21,6 +21,9 @@
 #define TTY_PRIORITY         (0)
 #define TTY_EP_BADGE         (101)
 
+#define ERR_NOT_IN_ADDRESS_SPACE (2)
+#define ERR_INVALID_ADDRESS (3)
+
 static struct {
     cspace_t * cspace;
     DynamicArr_t procArr;
@@ -65,7 +68,6 @@ void MappedRegion__unmapCapCallback( void * data){
 }
 
 void MappedRegion__free(sos_mapped_region_t mgt){
-    // TODO; free all the caps;
     DynamicQ__forAll(mgt->capList, MappedRegion__unmapCapCallback);
     DynamicQ__free(mgt->capList);
     ContinueRegion__release(process_s.contRegion, mgt->crrt);
@@ -167,10 +169,12 @@ seL4_Error Process__mapOut(
     frame_ref_t frame_d =  (frame_ref_t) AddressSpace__getPaddrByVaddr(
         proc->addressSpace, (void *) vaddr
     );
+    if (frame_d == NULL_FRAME) return ERR_NOT_IN_ADDRESS_SPACE;
+
     // printf("I have %lu\n", frame_d);
     // protential cspace leak, let the vm to handle this 
     seL4_CPtr cptr = cspace_alloc_slot(process_s.cspace);
-    printf("Map out cptr dest  %ld \n", cptr);
+    // printf("Map out cptr dest  %ld \n", cptr);
     seL4_Error err = cspace_copy(
         process_s.cspace, cptr, process_s.cspace,
         frame_page(frame_d), seL4_AllRights);
@@ -180,13 +184,11 @@ seL4_Error Process__mapOut(
         return 1;
     }
 
-    // proc->share_buffer_vaddr = get_new_share_buff_vaddr();
     err = sos_map_frame(
         process_s.sosUtList,
         process_s.cspace, cptr, seL4_CapInitThreadVSpace,
         (seL4_Word) sos_vaddr, seL4_AllRights,
         seL4_ARM_Default_VMAttributes);
-    // printf("share Buff vaddr %p\n", the_proc->share_buffer_vaddr);
     if (err != seL4_NoError) {
         ZF_LOGE("\n\n\nUnable to map share buff to sos vaddr");
         cspace_delete(process_s.cspace, cptr);
@@ -206,11 +208,14 @@ void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word siz
     size = Process__size4kAlign(size);
     // how much page need to map 
     size >>= 12;
+
+    seL4_Word vaddr_aligned = Process__vaddr4kAlign(vaddr);
+
     for (size_t i = 0; i < size; i++)
     {
         if (
             Process__mapOut(
-                proc, vaddr,
+                proc, vaddr_aligned,
                 (seL4_Word)Process__getShareRegionStart(proc) +(PAGE_SIZE_4K * i), 
                 proc->shareRegion->capList
             )!= seL4_NoError
@@ -221,8 +226,40 @@ void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word siz
     }
     
     proc->share_buffer_vaddr = Process__getShareRegionStart(proc);
-    return proc->share_buffer_vaddr;
+
+    return proc->share_buffer_vaddr + (vaddr & ((1<<12) -1));
 }
+
+void * Process__mapOutShareRegionForce(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size){
+    seL4_Word size_aligned = Process__size4kAlign(size);
+    // how much page need to map 
+    size_aligned >>= 12;
+    seL4_Word vaddr_aligned = Process__vaddr4kAlign(vaddr);
+    for (size_t i = 0; i < size_aligned; i++)
+    {
+        void * this_vaddr = (void *) (vaddr_aligned + PAGE_SIZE_4K * i );
+
+        if (
+            AddressSpace__isInAdddrSpace(proc->addressSpace, this_vaddr)==0 && AddressSpace__tryResize(proc->addressSpace, STACK, this_vaddr) == false
+        ){
+            ZF_LOGE("Client give a invalid address\n");
+            return NULL;
+        }
+
+        frame_ref_t framd = (frame_ref_t) AddressSpace__getPaddrByVaddr(
+            proc->addressSpace, this_vaddr
+        );
+        if (framd == NULL_FRAME)
+        {
+            Process__allocMapIn(proc, (seL4_Word) this_vaddr);
+        }
+    }
+    // passthrough
+    // @post: all frame is alloced;
+    return Process__mapOutShareRegion(proc,vaddr, size);    
+
+}
+
 
 void Process__unmapShareRegion(sos_pcb_t proc){
     MappedRegion__free(proc->shareRegion);
@@ -341,6 +378,8 @@ static addressSpace_t Process__addrSpaceInit(){
     AddressSpace__declear(ret, STACK, (void *) PROCESS_STACK_TOP, BIT(24));
     // we give heap 4K (It can grow as required)
     AddressSpace__declear(ret, HEAP, (void *) PROCESS_HEAP_BOTTOM, BIT(12));
+    // I map two page there for current implementation 
+    AddressSpace__declear(ret, HEAP, (void *) PROCESS_IPC_BUFFER, BIT(13));
     return ret;
 }
 
@@ -515,14 +554,9 @@ void Process_dumpPcb(uint32_t pid){
     printf("tcb: %ld\n", proc->tcb);
     printf("vspace_ut: %p\n", proc->vspace_ut);
     printf("vspace: %ld\n", proc->vspace);
-    printf("ipc_buffer_ut: %p\n", proc->ipc_buffer_ut);
     printf("ipc_buffer: %ld\n", proc->ipc_buffer);
-    printf("share_buffer_ut: %p\n", proc->share_buffer_ut);
-    printf("share_buffer: %ld\n", proc->share_buffer);
     printf("share_buffer_vaddr: %p\n", proc->share_buffer_vaddr);
     printf("cspace: %p\n",  (void *) & proc->cspace);
-    printf("stack_ut: %p\n", proc->stack_ut);
-    printf("stack: %ld\n", proc->stack);
     printf("fdt: %p\n", proc->fdt);
     debug_dump_registers(proc->tcb);
 }
@@ -541,7 +575,9 @@ void Process_dumpPcbByBadge(uint64_t badage){
 }
 
 
-
+/**
+ * VM managemanagements
+ */
 void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge){
     sos_pcb_t proc = Process__getPcbByBadage(badge);
     printf("I need to process vmfault\n");
@@ -568,6 +604,9 @@ void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge){
     {
         printf("I couldn't found thread %lu\n", badge);
     }
-    
-    
+}
+
+bool Proccess__increaseHeap(sos_pcb_t proc, void * vaddr){
+    // I know it's the stack, for this syscall
+    return AddressSpace__tryResize(proc->addressSpace, STACK, vaddr);
 }

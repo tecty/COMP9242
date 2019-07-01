@@ -16,19 +16,14 @@ struct sos_pcb{
     ut_t *tcb_ut;
     seL4_CPtr tcb;
     ut_t *vspace_ut;
+    cspace_t cspace;
     seL4_CPtr vspace;
 
-    ut_t *ipc_buffer_ut;
     seL4_CPtr ipc_buffer;
 
-    ut_t *share_buffer_ut;
-    seL4_CPtr share_buffer;
     void* share_buffer_vaddr;
 
-    cspace_t cspace;
-
     ut_t *stack_ut;
-    seL4_CPtr stack;
 
     FDT_t fdt;
     addressSpace_t addressSpace;
@@ -42,12 +37,15 @@ void Process__init(
     cspace_t * cspace, char * cpio_archive, char* cpio_archive_end
 );
 uint32_t Process__startProc(char *app_name, seL4_CPtr ep);
+void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size);
+void * Process__mapOutShareRegionForce(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size);
 
 void Process_dumpPcb(uint32_t pid);
 sos_pcb_t Process__getPcbByPid(uint32_t pid);
 sos_pcb_t Process__getPcbByBadage(uint64_t badage);
 void Process_dumpPcbByBadge(uint64_t badage);
-void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge);
 // global share buff addr incrementor
-void * get_new_share_buff_vaddr();
+void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge);
+bool Proccess__increaseHeap(sos_pcb_t proc, void * vaddr);
+
 #endif // PROCESS_H
