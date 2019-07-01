@@ -21,6 +21,9 @@ void AddressSpace__declear(
     addressSpace_t ast, enum addressRegionTypes_e type,
     void * start, uint64_t size
 );
+bool AddressSpace__tryResize(
+    addressSpace_t ast, enum addressRegionTypes_e type, void * vaddr
+);
 void AddressSpace__free(addressSpace_t ast);
 
 

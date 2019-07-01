@@ -110,6 +110,14 @@ bool AddressSpace__isInAdddrSpace(addressSpace_t ast, void* vaddr){
     return AddressRegion__isInRegion(ast->regions, vaddr) > 0;
 }
 
+bool AddressSpace__tryResize(
+    addressSpace_t ast, enum addressRegionTypes_e type, void * vaddr
+){
+    if (AddressSpace__isInAdddrSpace(ast, vaddr) == true) return true;
+    return AddressRegion__resizeByAddr(ast->regions, type, vaddr);
+}
+
+
 void AddressSpace__declear(
     addressSpace_t ast, enum addressRegionTypes_e type,
     void * start, uint64_t size

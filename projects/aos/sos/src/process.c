@@ -130,7 +130,7 @@ seL4_Error Process__allocMapIn(sos_pcb_t proc, seL4_Word vaddr){
         seL4_ARM_Default_VMAttributes
     );
     if (err != 0) {
-        ZF_LOGE("Unable to share buff for user app");
+        ZF_LOGE("Unable map in vaddr %lu app", vaddr);
         return 1;
     }
     // record it in address space 
@@ -262,55 +262,54 @@ static uintptr_t init_process_stack(
     // printf("\nAllocated fdt at %p\n", process_s.the_proc->fdt);
     seL4_Error err;
 
-    
-
-
-
-    for (size_t i = 0; i < 20; i++)
+    for (size_t i = 0; i < 1; i++)
     {
-        seL4_CPtr memcap = Process__allocFrameCap(proc,process_s.cspace);
-        if (i == 0)
-        {
-            proc->stack = memcap;
-        }
+        // seL4_CPtr memcap = Process__allocFrameCap(proc,process_s.cspace);
+        // if (i == 0)
+        // {
+        //     proc->stack = memcap;
+        // }
         stack_bottom -= PAGE_SIZE_4K;
         
-        /* Map in the stack frame for the user app */
-        err = sos_map_frame(
-            proc->utList,
-            process_s.cspace, memcap, proc->vspace, stack_bottom,
-            seL4_AllRights, seL4_ARM_Default_VMAttributes
-        );
-        if (err != 0) {
-            ZF_LOGE("Unable to map stack for user app");
-            return 0;
-        }
+        // /* Map in the stack frame for the user app */
+        // err = sos_map_frame(
+        //     proc->utList,
+        //     process_s.cspace, memcap, proc->vspace, stack_bottom,
+        //     seL4_AllRights, seL4_ARM_Default_VMAttributes
+        // );
+        // if (err != 0) {
+        //     ZF_LOGE("Unable to map stack for user app");
+        //     return 0;
+        // }
+        printf("I need map to %p\n", (void *) stack_bottom);
+        err = Process__allocMapIn(proc, stack_bottom);
     }
-    
+    DynamicQ_t stack_caps = DynamicQ__init(sizeof(seL4_CPtr));
+    err = Process__mapOut(proc, stack_top - PAGE_SIZE_4K, local_stack_bottom, stack_caps);
     /* allocate a slot to duplicate the stack frame cap so we can map it into our address space */
-    seL4_CPtr local_stack_cptr = cspace_alloc_slot(process_s.cspace);
-    if (local_stack_cptr == seL4_CapNull) {
-        ZF_LOGE("Failed to alloc slot for stack");
-        return 0;
-    }
+    // seL4_CPtr local_stack_cptr = cspace_alloc_slot(process_s.cspace);
+    // if (local_stack_cptr == seL4_CapNull) {
+    //     ZF_LOGE("Failed to alloc slot for stack");
+    //     return 0;
+    // }
 
-    /* copy the stack frame cap into the slot */
-    err = cspace_copy(process_s.cspace, local_stack_cptr, process_s.cspace, proc->stack, seL4_AllRights);
-    if (err != seL4_NoError) {
-        cspace_free_slot(process_s.cspace, local_stack_cptr);
-        ZF_LOGE("Failed to copy cap");
-        return 0;
-    }
+    // /* copy the stack frame cap into the slot */
+    // err = cspace_copy(process_s.cspace, local_stack_cptr, process_s.cspace, proc->stack, seL4_AllRights);
+    // if (err != seL4_NoError) {
+    //     cspace_free_slot(process_s.cspace, local_stack_cptr);
+    //     ZF_LOGE("Failed to copy cap");
+    //     return 0;
+    // }
 
-    /* map it into the sos address space */
-    err = sos_map_frame(
-        process_s.sosUtList,process_s.cspace, local_stack_cptr, local_vspace, local_stack_bottom, seL4_AllRights,
-                    seL4_ARM_Default_VMAttributes);
-    if (err != seL4_NoError) {
-        cspace_delete(process_s.cspace, local_stack_cptr);
-        cspace_free_slot(process_s.cspace, local_stack_cptr);
-        return 0;
-    }
+    // /* map it into the sos address space */
+    // err = sos_map_frame(
+    //     process_s.sosUtList,process_s.cspace, local_stack_cptr, local_vspace, local_stack_bottom, seL4_AllRights,
+    //                 seL4_ARM_Default_VMAttributes);
+    // if (err != seL4_NoError) {
+    //     cspace_delete(process_s.cspace, local_stack_cptr);
+    //     cspace_free_slot(process_s.cspace, local_stack_cptr);
+    //     return 0;
+    // }
 
     int index = -2;
 
@@ -347,15 +346,16 @@ static uintptr_t init_process_stack(
     assert(stack_top % (sizeof(seL4_Word) * 2) == 0);
 
     /* unmap our copy of the stack */
-    err = seL4_ARM_Page_Unmap(local_stack_cptr);
-    assert(err == seL4_NoError);
+    // TODO: Unmap 
+    // err = seL4_ARM_Page_Unmap(local_stack_cptr);
+    // assert(err == seL4_NoError);
 
-    /* delete the copy of the stack frame cap */
-    err = cspace_delete(process_s.cspace, local_stack_cptr);
-    assert(err == seL4_NoError);
+    // /* delete the copy of the stack frame cap */
+    // err = cspace_delete(process_s.cspace, local_stack_cptr);
+    // assert(err == seL4_NoError);
 
-    /* mark the slot as free */
-    cspace_free_slot(process_s.cspace, local_stack_cptr);
+    // /* mark the slot as free */
+    // cspace_free_slot(process_s.cspace, local_stack_cptr);
 
     return stack_top;
 }
@@ -560,4 +560,38 @@ sos_pcb_t Process__getPcbByBadage(uint64_t badage){
 }
 void Process_dumpPcbByBadge(uint64_t badage){
     Process_dumpPcb(badage - 100);
+}
+
+static inline seL4_Word Process__vaddr4kAlign(seL4_Word vaddr){
+    return vaddr & (~ ((1<<12)-1) );
+}
+
+void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge){
+    sos_pcb_t proc = Process__getPcbByBadage(badge);
+    printf("I need to process vmfault\n");
+    if (proc != NULL)
+    {
+        /* Map in one frame into the addresspace */
+        seL4_Fault_t fault = seL4_getFault(message);
+        seL4_Word vaddr = seL4_Fault_VMFault_get_Addr(fault);
+        // printf("It fault at %p\n", (void *) vaddr);
+        // printf("I need map to %p\n", (void *) Process__vaddr4kAlign(vaddr));
+        
+        // not premitted region
+        if (!AddressSpace__tryResize(proc->addressSpace, STACK, vaddr)){
+            ZF_LOGE("The vaddr is invalid in address space\n");
+            Process_dumpPcbByBadge(badge);
+            return ;
+        }
+
+        seL4_Error err = Process__allocMapIn(proc, Process__vaddr4kAlign(vaddr));
+        if (err != seL4_NoError) return;
+        
+        seL4_TCB_Resume(proc->tcb);
+    }else
+    {
+        printf("I couldn't found thread %lu\n", badge);
+    }
+    
+    
 }

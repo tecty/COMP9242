@@ -125,6 +125,11 @@ NORETURN void syscall_loop(seL4_CPtr ep)
              * message from tty_test! */
             // handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1);
             syscallEvents__enQueue(badge, seL4_MessageInfo_get_length(message) - 1);
+        } else if (label == seL4_Fault_VMFault)
+        {
+            /* VM Fault, try to solve */
+            Process__VMfaultHandler(message, badge);
+
         } else {
             /* some kind of fault */
             debug_print_fault(message, TTY_NAME);

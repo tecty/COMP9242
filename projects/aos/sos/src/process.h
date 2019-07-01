@@ -47,7 +47,7 @@ void Process_dumpPcb(uint32_t pid);
 sos_pcb_t Process__getPcbByPid(uint32_t pid);
 sos_pcb_t Process__getPcbByBadage(uint64_t badage);
 void Process_dumpPcbByBadge(uint64_t badage);
-
+void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge);
 // global share buff addr incrementor
 void * get_new_share_buff_vaddr();
 #endif // PROCESS_H
