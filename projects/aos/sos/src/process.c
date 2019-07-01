@@ -18,8 +18,6 @@
 
 #include <stdio.h>
 
-static seL4_Word share_buff_curr =  SOS_SHARE_BUF_START;
-
 #define TTY_PRIORITY         (0)
 #define TTY_EP_BADGE         (101)
 
@@ -38,11 +36,17 @@ struct sos_mapped_region
     ContinueRegion_Region_t crrt;
 };
 
-void * get_new_share_buff_vaddr(){
-    seL4_Word ret = share_buff_curr;
-    share_buff_curr += PAGE_SIZE_4K;
-    return (void *) ret;
+static inline seL4_Word Process__vaddr4kAlign(seL4_Word vaddr){
+    return vaddr & (~ ((1<<12)-1) );
 }
+
+static inline seL4_Word Process__size4kAlign(seL4_Word size){
+    // Src: adt/addressRegion
+    seL4_Word mask = ~((1<<12) - 1);
+    size = (size + ((1<<12) - 1)) & mask;
+    return size;
+}
+
 
 sos_mapped_region_t MappedRegion__init(){
     sos_mapped_region_t ret = malloc(sizeof(struct sos_mapped_region));
@@ -50,8 +54,19 @@ sos_mapped_region_t MappedRegion__init(){
     return ret;
 }
 
+void MappedRegion__unmapCapCallback( void * data){
+    seL4_CPtr cap =  * (seL4_CPtr *) data;
+    seL4_Error err;
+    err = seL4_ARM_Page_Unmap(cap);
+    ZF_LOGE_IFERR(err, "Fail to unmap cap %ld\n", cap);
+    err = cspace_delete(process_s.cspace, cap);
+    ZF_LOGE_IFERR(err, "Fail to delete cap %ld in cspace\n", cap);
+    cspace_free_slot(process_s.cspace, cap);
+}
+
 void MappedRegion__free(sos_mapped_region_t mgt){
     // TODO; free all the caps;
+    DynamicQ__forAll(mgt->capList, MappedRegion__unmapCapCallback);
     DynamicQ__free(mgt->capList);
     ContinueRegion__release(process_s.contRegion, mgt->crrt);
     free(mgt);
@@ -155,7 +170,7 @@ seL4_Error Process__mapOut(
     // printf("I have %lu\n", frame_d);
     // protential cspace leak, let the vm to handle this 
     seL4_CPtr cptr = cspace_alloc_slot(process_s.cspace);
-
+    printf("Map out cptr dest  %ld \n", cptr);
     seL4_Error err = cspace_copy(
         process_s.cspace, cptr, process_s.cspace,
         frame_page(frame_d), seL4_AllRights);
@@ -183,22 +198,34 @@ seL4_Error Process__mapOut(
     return 0;
 }
 
-void * Process__mapOutRegion(sos_pcb_t proc){
+
+
+void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size){
     proc->shareRegion = MappedRegion__init();
     proc->shareRegion->crrt = ContinueRegion__requestRegion(process_s.contRegion, 1);
-
-    if (
-        Process__mapOut(
-            proc, PROCESS_IPC_BUFFER + PAGE_SIZE_4K,
-            (seL4_Word)Process__getShareRegionStart(proc), 
-            proc->shareRegion->capList
-        )!= seL4_NoError
-    ) {
-        MappedRegion__free(proc->shareRegion);
-        return NULL;
-    };
+    size = Process__size4kAlign(size);
+    // how much page need to map 
+    size >>= 12;
+    for (size_t i = 0; i < size; i++)
+    {
+        if (
+            Process__mapOut(
+                proc, vaddr,
+                (seL4_Word)Process__getShareRegionStart(proc) +(PAGE_SIZE_4K * i), 
+                proc->shareRegion->capList
+            )!= seL4_NoError
+        ) {
+            MappedRegion__free(proc->shareRegion);
+            return NULL;
+        };
+    }
+    
     proc->share_buffer_vaddr = Process__getShareRegionStart(proc);
     return proc->share_buffer_vaddr;
+}
+
+void Process__unmapShareRegion(sos_pcb_t proc){
+    MappedRegion__free(proc->shareRegion);
 }
 
 
@@ -233,6 +260,7 @@ static ut_t *Process__allocRetype(sos_pcb_t proc, seL4_CPtr *cptr, seL4_Word typ
     return ut;
 }
 
+
 static int Process__writeStack(seL4_Word *mapped_stack, int index, uintptr_t val)
 {
     mapped_stack[index] = val;
@@ -242,16 +270,14 @@ static int Process__writeStack(seL4_Word *mapped_stack, int index, uintptr_t val
 /* set up System V ABI compliant stack, so that the process can
  * start up and initialise the C library */
 static uintptr_t init_process_stack(
-    sos_pcb_t proc, seL4_CPtr local_vspace, elf_t *elf_file
+    sos_pcb_t proc,elf_t *elf_file
 ){
     /* Create a stack frame */
     /* virtual addresses in the target process' address space */
     uintptr_t stack_top = PROCESS_STACK_TOP;
-    // uintptr_t stack_bottom = PROCESS_STACK_TOP - PAGE_SIZE_4K;
-    uintptr_t stack_bottom = PROCESS_STACK_TOP ;
+    uintptr_t stack_bottom = PROCESS_STACK_TOP - PAGE_SIZE_4K;
     /* virtual addresses in the SOS's address space */
     void *local_stack_top  = (seL4_Word *) SOS_SCRATCH;
-    uintptr_t local_stack_bottom = SOS_SCRATCH - PAGE_SIZE_4K;
 
     /* find the vsyscall table */
     uintptr_t sysinfo = *((uintptr_t *) elf_getSectionNamed(elf_file, "__vsyscall", NULL));
@@ -259,57 +285,15 @@ static uintptr_t init_process_stack(
         ZF_LOGE("could not find syscall table for c library");
         return 0;
     }
-    // printf("\nAllocated fdt at %p\n", process_s.the_proc->fdt);
-    seL4_Error err;
-
-    for (size_t i = 0; i < 1; i++)
-    {
-        // seL4_CPtr memcap = Process__allocFrameCap(proc,process_s.cspace);
-        // if (i == 0)
-        // {
-        //     proc->stack = memcap;
-        // }
-        stack_bottom -= PAGE_SIZE_4K;
-        
-        // /* Map in the stack frame for the user app */
-        // err = sos_map_frame(
-        //     proc->utList,
-        //     process_s.cspace, memcap, proc->vspace, stack_bottom,
-        //     seL4_AllRights, seL4_ARM_Default_VMAttributes
-        // );
-        // if (err != 0) {
-        //     ZF_LOGE("Unable to map stack for user app");
-        //     return 0;
-        // }
-        printf("I need map to %p\n", (void *) stack_bottom);
-        err = Process__allocMapIn(proc, stack_bottom);
-    }
-    DynamicQ_t stack_caps = DynamicQ__init(sizeof(seL4_CPtr));
-    err = Process__mapOut(proc, stack_top - PAGE_SIZE_4K, local_stack_bottom, stack_caps);
-    /* allocate a slot to duplicate the stack frame cap so we can map it into our address space */
-    // seL4_CPtr local_stack_cptr = cspace_alloc_slot(process_s.cspace);
-    // if (local_stack_cptr == seL4_CapNull) {
-    //     ZF_LOGE("Failed to alloc slot for stack");
-    //     return 0;
-    // }
-
-    // /* copy the stack frame cap into the slot */
-    // err = cspace_copy(process_s.cspace, local_stack_cptr, process_s.cspace, proc->stack, seL4_AllRights);
-    // if (err != seL4_NoError) {
-    //     cspace_free_slot(process_s.cspace, local_stack_cptr);
-    //     ZF_LOGE("Failed to copy cap");
-    //     return 0;
-    // }
-
-    // /* map it into the sos address space */
-    // err = sos_map_frame(
-    //     process_s.sosUtList,process_s.cspace, local_stack_cptr, local_vspace, local_stack_bottom, seL4_AllRights,
-    //                 seL4_ARM_Default_VMAttributes);
-    // if (err != seL4_NoError) {
-    //     cspace_delete(process_s.cspace, local_stack_cptr);
-    //     cspace_free_slot(process_s.cspace, local_stack_cptr);
-    //     return 0;
-    // }
+    seL4_Error err = Process__allocMapIn(proc, stack_bottom);
+    ZF_LOGE_IFERR(err, "Unable to Map in process stack\n");
+    // Map out
+    local_stack_top = Process__mapOutShareRegion(proc, stack_bottom, PAGE_SIZE_4K);
+    ZF_LOGE_IF(
+        local_stack_top == NULL, "Fail to map out the vaddr %p\n", 
+        (void *) stack_bottom
+    );
+    local_stack_top += PAGE_SIZE_4K;
 
     int index = -2;
 
@@ -347,16 +331,7 @@ static uintptr_t init_process_stack(
 
     /* unmap our copy of the stack */
     // TODO: Unmap 
-    // err = seL4_ARM_Page_Unmap(local_stack_cptr);
-    // assert(err == seL4_NoError);
-
-    // /* delete the copy of the stack frame cap */
-    // err = cspace_delete(process_s.cspace, local_stack_cptr);
-    // assert(err == seL4_NoError);
-
-    // /* mark the slot as free */
-    // cspace_free_slot(process_s.cspace, local_stack_cptr);
-
+    Process__unmapShareRegion(proc);
     return stack_top;
 }
 
@@ -476,7 +451,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     }
 
     /* set up the stack */
-    seL4_Word sp = init_process_stack(&the_proc,seL4_CapInitThreadVSpace, &elf_file);
+    seL4_Word sp = init_process_stack(&the_proc, &elf_file);
 
     /* load the elf image from the cpio file */
     err = elf_load(the_proc.utList, process_s.cspace, the_proc.vspace, &elf_file);
@@ -516,8 +491,11 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     /**
      * Map out 
      */
-    void * ret = Process__mapOutRegion(&the_proc);
+    void * ret = Process__mapOutShareRegion(
+        &the_proc, PROCESS_IPC_BUFFER + PAGE_SIZE_4K, PAGE_SIZE_4K
+    );
     ZF_LOGF_IF(ret == NULL, "Fail to map the share region to sos\n");
+
 
     /**
      * Process routeine
@@ -562,9 +540,7 @@ void Process_dumpPcbByBadge(uint64_t badage){
     Process_dumpPcb(badage - 100);
 }
 
-static inline seL4_Word Process__vaddr4kAlign(seL4_Word vaddr){
-    return vaddr & (~ ((1<<12)-1) );
-}
+
 
 void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge){
     sos_pcb_t proc = Process__getPcbByBadage(badge);
@@ -578,7 +554,7 @@ void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge){
         // printf("I need map to %p\n", (void *) Process__vaddr4kAlign(vaddr));
         
         // not premitted region
-        if (!AddressSpace__tryResize(proc->addressSpace, STACK, vaddr)){
+        if (!AddressSpace__tryResize(proc->addressSpace, STACK, (void *) vaddr)){
             ZF_LOGE("The vaddr is invalid in address space\n");
             Process_dumpPcbByBadge(badge);
             return ;
