@@ -117,6 +117,19 @@ void AddressSpace__declear(
     AddressRegion__declare(ast->regions, type, start, size);
 }
 
+seL4_Error AddressSpace__addSize(
+    addressSpace_t ast, enum addressRegionTypes_e type, 
+    void * new_end
+){
+    enum addressRegionTypes_e old_type = 
+        AddressRegion__isInRegion(ast->regions, new_end);
+    if (old_type == 0 || old_type == type){
+        // request is avalid 
+        return 0;
+    }
+    // over flow 
+    return 1;
+}
 
 void AddressSpace__free(addressSpace_t ast){
     // uint64_t * page_addr = 0;

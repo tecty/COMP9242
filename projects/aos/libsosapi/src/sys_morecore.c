@@ -26,6 +26,7 @@
  */
 #define MORECORE_AREA_BYTE_SIZE 0x100000
 char morecore_area[MORECORE_AREA_BYTE_SIZE];
+#define PROCESS_HEAP_BOTTOM   (0x50000000)
 
 /* Pointer to free space in the morecore area. */
 static uintptr_t morecore_base = (uintptr_t) &morecore_area;

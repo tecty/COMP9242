@@ -369,6 +369,9 @@ static addressSpace_t Process__addrSpaceInit(){
     return ret;
 }
 
+// seL4_Error Process__increaseHeap(sos_pcb_t proc, void * top){
+//     addrspace
+// }
 
 /* Start the first process, and return true if successful
  *

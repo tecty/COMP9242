@@ -1,9 +1,9 @@
 #if !defined(ADDRESS_REGION_H)
 #define ADDRESS_REGION_H
 
-#include <string.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
+
 #define ALLOW_STACK_MALLOC (0x2000)
 enum addressRegionTypes_e {
     HEAP = 1, STACK, CODE, SHARE
@@ -21,13 +21,8 @@ void AddressRegion__declare(
 enum addressRegionTypes_e AddressRegion__isInRegion(
     AddressRegion_t ar, void * index
 );
-
-enum addressRegionTypes_e AddressRegion__isInStack(
-    AddressRegion_t ar, void * index
-);
-
-void AddressRegion__regionAddSize(
-    AddressRegion_t ar, enum addressRegionTypes_e type, size_t add_size
+bool AddressRegion__resizeByAddr(
+    AddressRegion_t ar, enum addressRegionTypes_e type, void * index
 );
 
 void AddressRegion__free(AddressRegion_t ar);
