@@ -200,9 +200,14 @@ seL4_Error Process__mapOut(
     return 0;
 }
 
-
+void Process__unmapShareRegion(sos_pcb_t proc){
+    MappedRegion__free(proc->shareRegion);
+    proc->shareRegion = NULL;
+}
 
 void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size){
+    // protect share region is always one
+    if (proc->shareRegion != NULL) Process__unmapShareRegion(proc);
     proc->shareRegion = MappedRegion__init();
     proc->shareRegion->crrt = ContinueRegion__requestRegion(process_s.contRegion, 1);
     size = Process__size4kAlign(size);
@@ -260,10 +265,6 @@ void * Process__mapOutShareRegionForce(sos_pcb_t proc, seL4_Word vaddr, seL4_Wor
 
 }
 
-
-void Process__unmapShareRegion(sos_pcb_t proc){
-    MappedRegion__free(proc->shareRegion);
-}
 
 
 /* helper to allocate a ut + cslot, and retype the ut into the cslot */
@@ -383,6 +384,12 @@ static addressSpace_t Process__addrSpaceInit(){
     return ret;
 }
 
+void Process__declearAddressRegion(
+    sos_pcb_t proc, enum addressRegionTypes_e type, seL4_Word vaddr, seL4_Word size
+){
+    AddressSpace__declear(proc->addressSpace, type, (void *) vaddr, size);
+}
+
 // seL4_Error Process__increaseHeap(sos_pcb_t proc, void * top){
 //     addrspace
 // }
@@ -401,6 +408,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     the_proc.capList      = DynamicQ__init(sizeof(seL4_CPtr));
     the_proc.frameList    = DynamicQ__init(sizeof(frame_ref_t));
     the_proc.addressSpace = Process__addrSpaceInit();
+    the_proc.shareRegion  = NULL;
 
 
     the_proc.vspace_ut = Process__allocRetype(
@@ -493,7 +501,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     seL4_Word sp = init_process_stack(&the_proc, &elf_file);
 
     /* load the elf image from the cpio file */
-    err = elf_load(the_proc.utList, process_s.cspace, the_proc.vspace, &elf_file);
+    err = elf_load(&the_proc, process_s.cspace, the_proc.vspace, &elf_file);
     if (err) {
         ZF_LOGE("Failed to load elf image");
         return 0;

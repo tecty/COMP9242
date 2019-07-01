@@ -37,8 +37,13 @@ void Process__init(
     cspace_t * cspace, char * cpio_archive, char* cpio_archive_end
 );
 uint32_t Process__startProc(char *app_name, seL4_CPtr ep);
+
+void Process__declearAddressRegion(
+    sos_pcb_t proc, enum addressRegionTypes_e type, seL4_Word vaddr, seL4_Word size
+);
 void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size);
 void * Process__mapOutShareRegionForce(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size);
+void Process__unmapShareRegion(sos_pcb_t proc);
 
 void Process_dumpPcb(uint32_t pid);
 sos_pcb_t Process__getPcbByPid(uint32_t pid);
@@ -47,5 +52,4 @@ void Process_dumpPcbByBadge(uint64_t badage);
 // global share buff addr incrementor
 void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge);
 bool Proccess__increaseHeap(sos_pcb_t proc, void * vaddr);
-
 #endif // PROCESS_H

@@ -16,9 +16,10 @@
 #include <elf/elf.h>
 #include <elf.h>
 #include <adt/dynamicQ.h>
+#include "process.h"
 
 
 // int elf_load(cspace_t *cspace, seL4_CPtr loadee_vspace, elf_t *elf_file);
 int elf_load(
-    DynamicQ_t utList, cspace_t *cspace, seL4_CPtr loadee_vspace, elf_t *elf_file
+    sos_pcb_t proc, cspace_t *cspace, seL4_CPtr loadee_vspace, elf_t *elf_file
 );
