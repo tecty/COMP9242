@@ -79,11 +79,11 @@ do_pt_test(char *buf)
 
     /* check */
     for (int i = 0; i < NPAGES; i++) {
-        if (buf[i* PAGE_SIZE_4K] != i)
-        {
-            printf("I got error when I have %d, I got %d\n", i, buf[i* PAGE_SIZE_4K]);
-        }
-        assert(buf[i * PAGE_SIZE_4K] == i);
+        // if (buf[i* PAGE_SIZE_4K] != i)
+        // {
+        //     printf("I got error when I have %d, I got %d\n", i, buf[i* PAGE_SIZE_4K]);
+        // }
+        assert(buf[i * PAGE_SIZE_4K] == i % 256);
         
     }
 }
@@ -95,7 +95,7 @@ pt_test( void )
     char buf1[NPAGES * PAGE_SIZE_4K], *buf2 = NULL;
 
     // printf("\n\nI have got buf1\n%p\n%p\n", buf1,(void *) TEST_ADDRESS);
-    printf("\n\nI have got two vaddr\n%p\n%p\n", buf1,(void *) TEST_ADDRESS);
+    // printf("\n\nI have got two vaddr\n%p\n%p\n", buf1,(void *) TEST_ADDRESS);
     /* check the stack is above phys mem */
     assert((void *) buf1 > (void *) TEST_ADDRESS);
 
@@ -105,7 +105,7 @@ pt_test( void )
     /* heap test */
     // buf2 = malloc(NPAGES * PAGE_SIZE_4K);
     buf2 = malloc(28 * PAGE_SIZE_4K);
-    printf("I have got buf 2 %p \n", buf2);
+    // printf("I have got buf 2 %p \n", buf2);
     assert(buf2);
     do_pt_test(buf2);
     free(buf2);

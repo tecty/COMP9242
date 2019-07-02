@@ -145,7 +145,7 @@ static void __syscall_us_sleep(syscallMessage_t msg){
 
 static void __syscall_sys_brk(syscallMessage_t msg){
     seL4_Word ret;
-    printf("brk has received %ld\n", msg->words[0]);
+    // printf("brk has received %ld\n", msg->words[0]);
     // error by return 0  eg. over 122kB
     if (!Proccess__increaseHeap(msg->tcb,(void *) msg->words[0])){
         ret = 0;
