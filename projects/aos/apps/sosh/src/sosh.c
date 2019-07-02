@@ -29,7 +29,7 @@
 
 #include <utils/page.h>
 
-#define NPAGES 28
+#define NPAGES 270
 #define TEST_ADDRESS 0x8000000000
 
 
@@ -79,10 +79,10 @@ do_pt_test(char *buf)
 
     /* check */
     for (int i = 0; i < NPAGES; i++) {
-        // if (buf[i* PAGE_SIZE_4K] != i)
-        // {
-        //     printf("I got error when I have %d, I got %d\n", i, buf[i* PAGE_SIZE_4K]);
-        // }
+        if (buf[i* PAGE_SIZE_4K] != i)
+        {
+            printf("I got error when I have %d, I got %d\n", i, buf[i* PAGE_SIZE_4K]);
+        }
         assert(buf[i * PAGE_SIZE_4K] == i);
         
     }
@@ -103,7 +103,8 @@ pt_test( void )
     do_pt_test(buf1);
 
     /* heap test */
-    buf2 = malloc(NPAGES * PAGE_SIZE_4K);
+    // buf2 = malloc(NPAGES * PAGE_SIZE_4K);
+    buf2 = malloc(28 * PAGE_SIZE_4K);
     printf("I have got buf 2 %p \n", buf2);
     assert(buf2);
     do_pt_test(buf2);
