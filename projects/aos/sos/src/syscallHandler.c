@@ -45,7 +45,6 @@ void __syscall_read_callback(uint64_t len, void * data){
     // printf("I sent to client %s\n", ((char * )msg->tcb->share_buffer_vaddr));
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
     seL4_SetMR(0, len);
-
     seL4_Send(msg->replyCap, reply_msg);
     // finish it by calling a callback 
     syscallEvents__finish(msg->event_id);
@@ -146,7 +145,7 @@ static void __syscall_us_sleep(syscallMessage_t msg){
 
 static void __syscall_sys_brk(syscallMessage_t msg){
     seL4_Word ret;
-
+    printf("brk has received %ld\n", msg->words[0]);
     // error by return 0  eg. over 122kB
     if (!Proccess__increaseHeap(msg->tcb,(void *) msg->words[0])){
         ret = 0;

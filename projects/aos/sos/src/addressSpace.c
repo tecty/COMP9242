@@ -35,18 +35,19 @@ addressSpace_t AddressSpace__init(){
 }
 
 // private
-static inline uint16_t AddressSpace__shiftBits(uint16_t depth){
+static inline uint32_t AddressSpace__shiftBits(uint16_t depth){
     return (12 + 9 * depth);
 }
 
 static inline uint16_t AddressSpace__getIndexByVaddr(void * vaddr, uint16_t depth){
     depth = 3 - depth;
     // calculate the mask
-    uint64_t mask = ((1<<9) -1) << AddressSpace__shiftBits(depth);
+    uint64_t mask = ((1<<9) -1);
+    mask <<= AddressSpace__shiftBits(depth);
+    // printf("I have got the mask %p\tleftshift: %d\n", (void *) mask, AddressSpace__shiftBits(depth));
     // calculate this index 
     uint64_t this_index = (uint64_t) vaddr;
-    this_index &= mask;
-    this_index >>= AddressSpace__shiftBits(depth);
+    this_index = (this_index & mask) >>  AddressSpace__shiftBits(depth);
     return this_index;
 }
 
@@ -61,8 +62,14 @@ void AddressSpace__mapVaddr(
     {
         // calculate the mask
         this_index = AddressSpace__getIndexByVaddr(vaddr, i);
-        // printf("Insert: got Index %lu\n", this_index);
-
+        // if (this_index > PAGE_SLOT){
+        //     printf("Insert: got Index %lu\n", this_index);
+        //     printf("vaddr %p\t depth:%ld\n", vaddr,i);
+        //     printf("vaddr %p\n",(void *) AddressSpace__getIndexByVaddr(vaddr,0));
+        //     printf("vaddr %p\n",(void *) AddressSpace__getIndexByVaddr(vaddr,1));
+        //     printf("vaddr %p\n",(void *) AddressSpace__getIndexByVaddr(vaddr,2));
+        //     printf("vaddr %p\n",(void *) AddressSpace__getIndexByVaddr(vaddr,3));
+        // }
         assert(this_index < PAGE_SLOT);
         if (i ==3)
         {

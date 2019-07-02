@@ -376,11 +376,11 @@ static uintptr_t init_process_stack(
 static addressSpace_t Process__addrSpaceInit(){
     addressSpace_t ret = AddressSpace__init();
     // we give stak 16 MB
-    AddressSpace__declear(ret, STACK, (void *) PROCESS_STACK_TOP, BIT(24));
+    AddressSpace__declear(ret, STACK, (void *) PROCESS_STACK_TOP, 0x10000000);
     // we give heap 4K (It can grow as required)
-    AddressSpace__declear(ret, HEAP, (void *) PROCESS_HEAP_BOTTOM, BIT(12));
+    AddressSpace__declear(ret, HEAP, (void *) PROCESS_HEAP_BOTTOM, 0x10000000);
     // I map two page there for current implementation 
-    AddressSpace__declear(ret, HEAP, (void *) PROCESS_IPC_BUFFER, BIT(13));
+    AddressSpace__declear(ret, IPC, (void *) PROCESS_IPC_BUFFER, BIT(13));
     return ret;
 }
 
@@ -588,7 +588,7 @@ void Process_dumpPcbByBadge(uint64_t badage){
  */
 void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge){
     sos_pcb_t proc = Process__getPcbByBadage(badge);
-    printf("I need to process vmfault\n");
+    // printf("I need to process vmfault\n");
     if (proc != NULL)
     {
         /* Map in one frame into the addresspace */
@@ -616,5 +616,5 @@ void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge){
 
 bool Proccess__increaseHeap(sos_pcb_t proc, void * vaddr){
     // I know it's the stack, for this syscall
-    return AddressSpace__tryResize(proc->addressSpace, STACK, vaddr);
+    return AddressSpace__tryResize(proc->addressSpace, HEAP, vaddr);
 }

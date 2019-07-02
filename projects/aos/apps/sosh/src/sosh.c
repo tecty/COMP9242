@@ -27,6 +27,12 @@
 
 #include "benchmark.h"
 
+#include <utils/page.h>
+
+#define NPAGES 28
+#define TEST_ADDRESS 0x8000000000
+
+
 /**
  * Some syscall numbers 
  */
@@ -35,8 +41,7 @@
 #define SOS_WRITE 2
 #define SOS_READ  3
 
-#define SHARE_BUF_VADDR (0xA0001000)
-#define PAGE_SIZE_4K (0x1000)
+// #define PAGE_SIZE_4K (0x1000)
 
 #define BUF_SIZ    6144
 #define MAX_ARGS   32
@@ -56,42 +61,53 @@ static size_t sos_debug_print(const void *vData, size_t count)
     return count;
 }
 
-static size_t sos_write_words(seL4_Word * word, size_t len){
-    //implement this to use your syscall
-    // return sos_debug_print(vData, count);
-    int ret = -1; 
-    // limit trial 
-    size_t trial = 0;
-    // len now is cap to PAGE_SIZE_4K
-    if (len > PAGE_SIZE_4K) len=  PAGE_SIZE_4K;
 
-    
-    while ( ret == -1 && trial < 3){
-        /* deal with the hardware error in the user-mode */
-        seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 2);
-        /* Set the first word in the message to 0 */
-        seL4_SetMR(0, SOS_WRITE);
-        seL4_SetMR(1, len);
-        // copy the message into the ipc buffer
-        memcpy(
-            (void *) SHARE_BUF_VADDR, 
-            word,
-            len
-        );
+/* called from pt_test */
+static void
+do_pt_test(char *buf)
+{
+    int i;
+    /* set */
+    for (int i = 0; i < NPAGES; i++) {
+        buf[i * PAGE_SIZE_4K] = i;
+        // if (buf[i* PAGE_SIZE_4K] != i)
+        // {
+        //     printf("WriteERR when I have %d, I got %d\n", i, buf[i* PAGE_SIZE_4K]);
+        // }
 
-        /* Now send the ipc -- call will send the ipc, then block until a reply
-        * message is received */
-        seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
-        
-        // update value after syscall 
-        ret= seL4_GetMR(0);
-
-        trial ++;
     }
-    
-    // pretend nothing happend if trail > 3 
-    // we couldn't do anything 
-    return ret;
+
+    /* check */
+    for (int i = 0; i < NPAGES; i++) {
+        // if (buf[i* PAGE_SIZE_4K] != i)
+        // {
+        //     printf("I got error when I have %d, I got %d\n", i, buf[i* PAGE_SIZE_4K]);
+        // }
+        assert(buf[i * PAGE_SIZE_4K] == i);
+        
+    }
+}
+
+static void
+pt_test( void )
+{
+    /* need a decent sized stack */
+    char buf1[NPAGES * PAGE_SIZE_4K], *buf2 = NULL;
+
+    // printf("\n\nI have got buf1\n%p\n%p\n", buf1,(void *) TEST_ADDRESS);
+    printf("\n\nI have got two vaddr\n%p\n%p\n", buf1,(void *) TEST_ADDRESS);
+    /* check the stack is above phys mem */
+    assert((void *) buf1 > (void *) TEST_ADDRESS);
+
+    /* stack test */
+    do_pt_test(buf1);
+
+    /* heap test */
+    buf2 = malloc(NPAGES * PAGE_SIZE_4K);
+    printf("I have got buf 2 %p \n", buf2);
+    assert(buf2);
+    do_pt_test(buf2);
+    free(buf2);
 }
 
 size_t sos_write(void *vData, size_t count)
@@ -436,15 +452,17 @@ int main(void)
     int i, r, done, found, new, argc;
     char *bp, *p;
 
-    in = open("console", O_RDWR);
-    test_buffers(in);
-    in = close(in);
-    if (in == 0)
-    {
-        printf("close test success\n");
-    } else {
-        printf("close test fail, I got %d\n", in);
-    }
+    pt_test();
+
+    // in = open("console", O_RDWR);
+    // test_buffers(in);
+    // in = close(in);
+    // if (in == 0)
+    // {
+    //     printf("close test success\n");
+    // } else {
+    //     printf("close test fail, I got %d\n", in);
+    // }
     
     
     // assert(in >= 0);
