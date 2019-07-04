@@ -547,7 +547,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     /**
      * Process routeine
      */
-    the_proc.fdt = vfsFdt__init();
+    the_proc.fdt = VfsFdt__init();
     return DynamicArr__add(process_s.procArr, &the_proc) + 1;
 
     cleanUp: 

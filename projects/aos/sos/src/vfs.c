@@ -14,6 +14,7 @@ typedef struct open_file
 {
     iovec_t iov;
     uint64_t mode;
+    void * data;
 } * open_file_t;
 
 static struct iovec serial_iov = 
@@ -27,11 +28,11 @@ static struct {
 } vfs_s;
 
 
-void vfs__init(){
+void Vfs__init(){
     vfs_s.open_file_table = DynamicArr__init(sizeof(struct open_file));
 }
 
-int64_t vfs__open(char * path, uint64_t mode){
+int64_t Vfs__open(char * path, uint64_t mode){
     if (strcmp(path, "console") == 0){
         struct open_file of;
         of.iov = &serial_iov;
@@ -41,7 +42,7 @@ int64_t vfs__open(char * path, uint64_t mode){
     return 0;
 }
 
-iovec_t vfs__getIov(int64_t ofd){
+iovec_t Vfs__getIov(int64_t ofd){
     if (ofd == 0) return NULL;
     open_file_t oft= DynamicArr__get(vfs_s.open_file_table, ofd -1 );
     if (oft == NULL) return NULL;
@@ -50,50 +51,50 @@ iovec_t vfs__getIov(int64_t ofd){
 }
 
 
-void vfs__close(uint64_t ofd){
+void Vfs__close(uint64_t ofd){
     return DynamicArr__del(vfs_s.open_file_table, ofd-1);
 }
 
-int64_t vfsFdt__open(FDT_t fdt, char * path, uint64_t mode){
-    int64_t ofd = vfs__open(path,mode);
+int64_t VfsFdt__open(FDT_t fdt, char * path, uint64_t mode){
+    int64_t ofd = Vfs__open(path,mode);
     // printf("Open with a result %ld \n",ofd);
     if (ofd > 0) return DynamicArr__add(fdt, &ofd);
     // ELSE 
     return ofd;
 }
 
-FDT_t vfsFdt__init(){
+FDT_t VfsFdt__init(){
     FDT_t fdt = DynamicArr__init(sizeof(uint64_t));
-    vfsFdt__open(fdt, "console", 0);
-    vfsFdt__open(fdt, "console", 0);
-    vfsFdt__open(fdt, "console", 0);
+    VfsFdt__open(fdt, "console", 0);
+    VfsFdt__open(fdt, "console", 0);
+    VfsFdt__open(fdt, "console", 0);
     return fdt;
 }
 
-int64_t vfsFdt__getOftd(FDT_t fdt, uint64_t fd){
+int64_t VfsFdt__getOftd(FDT_t fdt, uint64_t fd){
     // printf("search %lu, I got %p \n ", fd, DynamicArr__get(fdt, fd));
     return * (int64_t *) DynamicArr__get(fdt, fd);
 }
 
-int64_t vfsFdt__close(FDT_t fdt, uint64_t fd){
-    int64_t ofd = vfsFdt__getOftd(fdt, fd);
+int64_t VfsFdt__close(FDT_t fdt, uint64_t fd){
+    int64_t ofd = VfsFdt__getOftd(fdt, fd);
     if( ofd > 0){
-        vfs__close(ofd);
+        Vfs__close(ofd);
         DynamicArr__del(fdt , fd);
         return 0;
     }
     return -1;
 }
 
-vfs_read_t vfsFdt__getReadF(FDT_t fdt, uint64_t fd){
+vfs_read_t VfsFdt__getReadF(FDT_t fdt, uint64_t fd){
     // TODO: Mode check, Error checking
-    return vfs__getIov(vfsFdt__getOftd(fdt, fd))->read_f;
+    return Vfs__getIov(VfsFdt__getOftd(fdt, fd))->read_f;
 }
 
-vfs_write_t vfsFdt__getWriteF(FDT_t fdt, uint64_t fd){
+vfs_write_t VfsFdt__getWriteF(FDT_t fdt, uint64_t fd){
     // TODO: Mode check, Error checking
     // printf ("I have got the fdt_addr is  %p\n", fdt);
-    int64_t oftd = vfsFdt__getOftd(fdt, fd);
+    int64_t oftd = VfsFdt__getOftd(fdt, fd);
     // printf ("I have got the oftd is %ld\n", oftd);
-    return vfs__getIov(oftd)->write_f;
+    return Vfs__getIov(oftd)->write_f;
 }

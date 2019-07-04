@@ -20,7 +20,7 @@ static void __syscall_open(syscallMessage_t msg){
 
     seL4_SetMR(
         0,
-        vfsFdt__open(msg->tcb->fdt, (char *)msg->tcb->share_buffer_vaddr, msg->words[0])
+        VfsFdt__open(msg->tcb->fdt, (char *)msg->tcb->share_buffer_vaddr, msg->words[0])
     );
 
     // return 
@@ -32,7 +32,7 @@ static void __syscall_close(syscallMessage_t msg){
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
     // printf("try to invoke the open \n");
     // make sure it won't overflow 
-    seL4_SetMR(0, vfsFdt__close(msg->tcb->fdt, msg->words[0]));
+    seL4_SetMR(0, VfsFdt__close(msg->tcb->fdt, msg->words[0]));
     // return 
     seL4_Send(msg->replyCap, reply_msg);    
 }
@@ -69,7 +69,7 @@ static void __syscall_read(syscallMessage_t msg){
     
     // printf("I have got read len %lu\n",len);
     if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
-    vfsFdt__getReadF(msg->tcb->fdt, file)(
+    VfsFdt__getReadF(msg->tcb->fdt, file)(
         msg->tcb->share_buffer_vaddr, len, msg, __syscall_read_callback
     );
 }
@@ -89,7 +89,7 @@ static void __syscall_write(syscallMessage_t msg){
     // printf("I want to write at %ld\n",file);
     // printf("I want to print with data in %p\n", (void *) buf);
     // printf("I want to write with %p\n",DriverSerial__write);
-    // printf("which i got is %p\n", vfsFdt__getWriteF(msg->tcb->fdt, file));
+    // printf("which i got is %p\n", VfsFdt__getWriteF(msg->tcb->fdt, file));
 
     void * sos_buf = Process__mapOutShareRegion(msg->tcb, buf, len);
     // printf("sos buf at vaddr %p\n", sos_buf);
@@ -101,7 +101,7 @@ static void __syscall_write(syscallMessage_t msg){
         ret = -1;
     } else {
         // function to function pointer ==> use function pointer to call the function
-        ret = vfsFdt__getWriteF(msg->tcb->fdt, file)(sos_buf, len);
+        ret = VfsFdt__getWriteF(msg->tcb->fdt, file)(sos_buf, len);
         // unmap the region for useage in other area
         Process__unmapShareRegion(msg->tcb);
     }

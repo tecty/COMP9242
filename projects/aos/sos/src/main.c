@@ -264,7 +264,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     network_init(&cspace, timer_vaddr);
 
     DriverSerial__init();
-    vfs__init();
+    Vfs__init();
     Process__init(&cspace, _cpio_archive, _cpio_archive_end);
 
     /* Initialises the timer */
