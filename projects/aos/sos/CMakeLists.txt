@@ -71,6 +71,8 @@ add_executable(
     # m3 new here
     src/sos_mapping.c
     src/addressSpace.c
+    # m4 
+    src/drivers/nfs.c
 )
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(
