@@ -594,12 +594,15 @@ void Process__VMfaultHandler(seL4_MessageInfo_t message,uint64_t badge){
         /* Map in one frame into the addresspace */
         seL4_Fault_t fault = seL4_getFault(message);
         seL4_Word vaddr = seL4_Fault_VMFault_get_Addr(fault);
+        
         // printf("It fault at %p\n", (void *) vaddr);
         // printf("I need map to %p\n", (void *) Process__vaddr4kAlign(vaddr));
         
         // not premitted region
         if (!AddressSpace__tryResize(proc->addressSpace, STACK, (void *) vaddr)){
-            ZF_LOGE("The vaddr is invalid in address space\n");
+            ZF_LOGE(
+                "The vaddr is invalid in address space Vaddr:%p", (void *)vaddr
+            );
             Process_dumpPcbByBadge(badge);
             return ;
         }

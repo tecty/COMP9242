@@ -1,23 +1,25 @@
 #include "vfs.h"
 
+
 #include "drivers/serial.h"
+#include "drivers/nfs.h"
 #include <stdio.h>
 
-typedef struct iovec
+typedef struct sos_iovec
 {
     vfs_read_t read_f;
     vfs_write_t write_f;
-}* iovec_t;
+}* sos_iovec_t;
 
 
 typedef struct open_file
 {
-    iovec_t iov;
+    sos_iovec_t iov;
     uint64_t mode;
     void * data;
 } * open_file_t;
 
-static struct iovec serial_iov = 
+static struct sos_iovec serial_iov = 
 {
     .read_f = DriverSerial__read,
     .write_f = DriverSerial__write
@@ -30,6 +32,7 @@ static struct {
 
 void Vfs__init(){
     vfs_s.open_file_table = DynamicArr__init(sizeof(struct open_file));
+    DriverNfs__init();
 }
 
 int64_t Vfs__open(char * path, uint64_t mode){
@@ -42,7 +45,7 @@ int64_t Vfs__open(char * path, uint64_t mode){
     return 0;
 }
 
-iovec_t Vfs__getIov(int64_t ofd){
+sos_iovec_t Vfs__getIov(int64_t ofd){
     if (ofd == 0) return NULL;
     open_file_t oft= DynamicArr__get(vfs_s.open_file_table, ofd -1 );
     if (oft == NULL) return NULL;
