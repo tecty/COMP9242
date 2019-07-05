@@ -32,7 +32,7 @@ vfs_write_t VfsFdt__getWriteF(FDT_t fdt, uint64_t fd);
 
 
 /**
- * New async interface
+ * New async interface (callback hell, maybe I need a Promise LOL)
  */
 
 

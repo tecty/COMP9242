@@ -87,7 +87,6 @@ void VfsFdt__callback(int64_t err, void * private_data){
     );
 }
 
-
 void VfsFdt__openAsync(
     FDT_t fdt, char * path, uint64_t mode, vfs_callback_t cb, 
     void * private_data
@@ -101,8 +100,6 @@ void VfsFdt__openAsync(
 
     Vfs__openAsync(path, mode, VfsFdt__callback, (void *) id);
 }
-
-
 
 void VfsFdt__closeAsync(
     FDT_t fdt, uint64_t fd, vfs_callback_t cb, 
@@ -123,4 +120,56 @@ void VfsFdt__closeAsync(
     size_t id= DynamicArr__add(Vfs__getFdtTaskArr(), &task);
 
     Vfs__closeAsync(oftd, VfsFdt__callback, (void *) id);
+}
+
+/**
+ * We don't need a call back in VFS Layer in these function,
+ * Since read/write/stat/dirent won't change the state in VFS layer
+ * TODO: change to Async interface
+ */
+void VfsFdt__readAsync(
+    FDT_t fdt, uint64_t fd, void * buf, uint64_t len, vfs_callback_t cb,
+    void * private_data
+){
+    sos_iovec_t iov= VfsFdt__getIovByFd(fdt, fd);
+    if (iov == NULL){
+        // I couln't call the iov, since there's none
+        cb(-1, private_data);
+    }
+    // construct the task and consumed by unified callback
+    struct fdt_task task;
+    task.cb = cb; 
+    task.private_data = private_data;
+    task.fd = fd;
+    task.fdt = fdt;
+    task.type = READ;
+    size_t id= DynamicArr__add(Vfs__getFdtTaskArr(), &task);
+
+    // TODO: async here 
+    iov->read_f(buf, len,(void *) id, VfsFdt__callback);
+}
+void VfsFdt__writeAsync(
+    FDT_t fdt, uint64_t fd, void * buf, uint64_t len, vfs_callback_t cb, 
+    void * private_data
+){
+    sos_iovec_t iov= VfsFdt__getIovByFd(fdt, fd);
+    if (iov == NULL){
+        // I couln't call the iov, since there's none
+        cb(-1, private_data);
+    }
+    // construct the task and consumed by unified callback
+    struct fdt_task task;
+    task.cb = cb; 
+    task.private_data = private_data;
+    task.fd = fd;
+    task.fdt = fdt;
+    task.type = READ;
+    size_t id= DynamicArr__add(Vfs__getFdtTaskArr(), &task);
+
+    // TODO: async here 
+    // consume the task
+    VfsFdt__callback(
+        iov->write_f(buf, len),
+        (void *) id
+    );
 }

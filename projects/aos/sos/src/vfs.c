@@ -74,13 +74,7 @@ void Vfs__callback(int64_t err, void * private_data){
     } else if (err == 0 && task->type == OPEN) {
         // I should return the oftd to fdt
         err = task->oftd;
-    } else {
-        printf(
-            "Vfs__task end unexpectedly with err %ld, private_data %ld", 
-            err, (size_t) private_data
-        );
-    }
-    
+    } 
     task->cb(err, task->private_data);
     DynamicArr__del(vfs_s.tasks, (size_t) private_data);
 }
