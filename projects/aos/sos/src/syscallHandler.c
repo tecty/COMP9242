@@ -3,6 +3,8 @@
 #include "syscallEvents.h"
 #include <clock/clock.h>
 
+#define PATH_SIZE_MAX (1024)
+
 // basic elements for handleing syscalls 
 static cspace_t * rootCspace;
 static syscall_handles_t handles[SYSCALL_MAX];
@@ -13,18 +15,23 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
 
 
 static void __syscall_open(syscallMessage_t msg){
+    char * path = Process__mapOutShareRegion(
+        msg->tcb, msg->words[0], PATH_SIZE_MAX
+    );
+
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
     // printf("try to invoke the open \n");
     // make sure it won't overflow 
-    ((char *)msg->tcb->share_buffer_vaddr)[1023] ='\0';
 
     seL4_SetMR(
-        0,
-        VfsFdt__open(msg->tcb->fdt, (char *)msg->tcb->share_buffer_vaddr, msg->words[0])
+        0, VfsFdt__open(msg->tcb->fdt, path, msg->words[1])
     );
 
     // return 
-    seL4_Send(msg->replyCap, reply_msg);    
+    seL4_Send(msg->replyCap, reply_msg); 
+    /* return and clean up  */
+    Process__unmapShareRegion(msg->tcb);
+    syscallEvents__finish(msg);
 }
 
 
@@ -41,13 +48,12 @@ static void __syscall_close(syscallMessage_t msg){
 
 void __syscall_read_callback(uint64_t len, void * data){
     syscallMessage_t msg = (syscallMessage_t) data;
-    // ((char * )msg->tcb->share_buffer_vaddr)[len] = '\0';
-    // printf("I sent to client %s\n", ((char * )msg->tcb->share_buffer_vaddr));
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
     seL4_SetMR(0, len);
     seL4_Send(msg->replyCap, reply_msg);
     // finish it by calling a callback 
-    syscallEvents__finish(msg->event_id);
+    syscallEvents__finish(msg);
+    Process__unmapShareRegion(msg->tcb);
 }
 
 static void __syscall_read(syscallMessage_t msg){
@@ -63,14 +69,14 @@ static void __syscall_read(syscallMessage_t msg){
         seL4_SetMR(0, -1);
         seL4_Send(msg->replyCap, reply_msg);
         // finish it by calling a callback 
-        syscallEvents__finish(msg->event_id);
+        syscallEvents__finish(msg);
         return;
     }
     
     // printf("I have got read len %lu\n",len);
     if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
     VfsFdt__getReadF(msg->tcb->fdt, file)(
-        msg->tcb->share_buffer_vaddr, len, msg, __syscall_read_callback
+        sos_buf, len, msg, __syscall_read_callback
     );
 }
 
@@ -113,7 +119,7 @@ static void __syscall_write(syscallMessage_t msg){
     /* Send the reply to the saved reply capability. */
     seL4_Send(msg->replyCap, reply_msg);
     // finish it by calling a callback 
-    syscallEvents__finish(msg->event_id);
+    syscallEvents__finish(msg);
 }
 
 
@@ -125,7 +131,7 @@ static void __syscall_timestamp(syscallMessage_t msg){
     /* Send the reply to the saved reply capability. */
     seL4_Send(msg->replyCap, reply_msg);
     // finish it by calling a callback 
-    syscallEvents__finish(msg->event_id);
+    syscallEvents__finish(msg);
 }
 
 void us_sleep_callback(UNUSED uint32_t id, void * data ){
@@ -135,7 +141,7 @@ void us_sleep_callback(UNUSED uint32_t id, void * data ){
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
     seL4_Send(msg->replyCap, reply_msg);
 
-    syscallEvents__finish(msg->event_id);
+    syscallEvents__finish(msg);
 }
 
 static void __syscall_us_sleep(syscallMessage_t msg){
@@ -159,7 +165,7 @@ static void __syscall_sys_brk(syscallMessage_t msg){
     /* Send the reply to the saved reply capability. */
     seL4_Send(msg->replyCap, reply_msg);
     // finish it by calling a callback 
-    syscallEvents__finish(msg->event_id);
+    syscallEvents__finish(msg);
 }
 
 void syscallHandler__init(cspace_t *cspace){

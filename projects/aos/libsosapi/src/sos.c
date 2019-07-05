@@ -33,12 +33,13 @@
 
 int sos_sys_open(const char *path, fmode_t mode)
 {
-    seL4_MessageInfo_t msg = seL4_MessageInfo_new(0, 0, 0, 2);
+    seL4_MessageInfo_t msg = seL4_MessageInfo_new(0, 0, 0, 3);
     // call 
     seL4_SetMR(0,SOS_OPEN);
-    seL4_SetMR(1,mode);
-    strncpy((char *) SHARE_BUF_VADDR,path, 0x1000);
+    seL4_SetMR(1,(seL4_Word) path);
+    seL4_SetMR(2,mode);
     seL4_Call(SYSCALL_ENDPOINT_SLOT, msg);
+    // printf("\n\nI have got open %ld\n", seL4_GetMR(0));
     return seL4_GetMR(0);
 }
 
@@ -64,7 +65,6 @@ int sos_sys_read(int file, char *buf, size_t nbyte)
     seL4_SetMR(3,nbyte);
     seL4_Call(SYSCALL_ENDPOINT_SLOT, msg);
     int64_t read =  seL4_GetMR(0);
-    if (read !=  -1) memcpy(buf, (char *) SHARE_BUF_VADDR, read);
     
     return read;
 }
@@ -78,7 +78,6 @@ int sos_sys_write(int file, const char *buf, size_t nbyte)
     seL4_SetMR(2, (seL4_Word) buf);
     seL4_SetMR(3, nbyte);
     // copy the message into the ipc buffer
-    memcpy((void *) SHARE_BUF_VADDR, buf,nbyte);
 
     /* Now send the ipc -- call will send the ipc, then block until a reply
     * message is received */

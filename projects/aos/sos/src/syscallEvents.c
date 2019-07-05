@@ -55,16 +55,15 @@ void syscallEvents__deQueue(){
 }
 
 /* Handle the async deletion of message */
-void syscallEvents__finish(uint64_t event_id){
-    if (unlikely(event_id !=0))
+void syscallEvents__finish(syscallMessage_t msg){
+    if (unlikely(msg->event_id !=0))
     {
-        DynamicArr__del(sysEvent.messageArr, event_id-1);
+        DynamicArr__del(sysEvent.messageArr, msg->event_id-1);
     }
 }
 
 /* Now it just a simple wrapper */
 void syscallEvents__enQueue(UNUSED seL4_Word badge, UNUSED int num_args){
-
     /* allocate a slot for the reply cap */
     seL4_CPtr reply = cspace_alloc_slot(sysEvent.rootCspace);
     seL4_Error err = cspace_save_reply_cap(sysEvent.rootCspace, reply);

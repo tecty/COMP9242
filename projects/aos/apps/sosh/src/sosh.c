@@ -453,10 +453,10 @@ int main(void)
     int i, r, done, found, new, argc;
     char *bp, *p;
 
-    pt_test();
+    // pt_test();
 
-    // in = open("console", O_RDWR);
-    // test_buffers(in);
+    in = open("console", O_RDWR);
+    test_buffers(in);
     // in = close(in);
     // if (in == 0)
     // {
