@@ -36,10 +36,7 @@ DynamicArr_t DynamicArr__init(size_t item_size){
     return ret;
 }
 
-/**
- * @ret: the id to the inside managed strcuture 
- */
-size_t DynamicArr__add(DynamicArr_t da,void * data){
+void * Dynamic__alloc(DynamicArr_t da, size_t * id){
     if (da->alloced == da-> length - 2){
         // double the size, pre_alloc to improve searching
         da->length *= 2;
@@ -60,15 +57,25 @@ size_t DynamicArr__add(DynamicArr_t da,void * data){
     }
 
     // printf("Find a place to alloc at %ld\n", da->tail);
-    da->alloced ++;
+    *id = da->tail;
+    da->item_occupied[da->tail] = true;
+    da->alloced ++; 
 
+    DynamicArr__incTail(da);
+    // return da->item_arr + (da->tail * da->item_size);
+    return DynamicArr__get(da, *id);
+}
+
+
+/**
+ * @ret: the id to the inside managed strcuture 
+ */
+size_t DynamicArr__add(DynamicArr_t da,void * data){
+    size_t id;
     // store the new item here 
-    memcpy (da->item_arr + (da->tail * da->item_size), data, da->item_size);
+    memcpy (Dynamic__alloc(da, &id), data, da->item_size);
     // some routine to maintain the data intergity
-    size_t ret = da->tail;
-    da->item_occupied[ret] = true;
-    // DynamicArr__incTail(da);
-    return ret;
+    return id;
 }
 
 void * DynamicArr__get(DynamicArr_t da, size_t index){
