@@ -73,6 +73,7 @@ add_executable(
     src/addressSpace.c
     # m4 
     src/drivers/nfs.c
+    src/fdt.c
 )
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(

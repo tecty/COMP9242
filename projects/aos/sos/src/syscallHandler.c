@@ -46,7 +46,7 @@ static void __syscall_close(syscallMessage_t msg){
 
 
 
-void __syscall_read_callback(uint64_t len, void * data){
+void __syscall_vfs_callback(uint64_t len, void * data){
     syscallMessage_t msg = (syscallMessage_t) data;
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
     seL4_SetMR(0, len);
@@ -76,7 +76,7 @@ static void __syscall_read(syscallMessage_t msg){
     // printf("I have got read len %lu\n",len);
     if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
     VfsFdt__getReadF(msg->tcb->fdt, file)(
-        sos_buf, len, msg, __syscall_read_callback
+        sos_buf, len, msg, __syscall_vfs_callback
     );
 }
 

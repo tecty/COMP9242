@@ -263,7 +263,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     printf("Network init\n");
     network_init(&cspace, timer_vaddr);
 
-    DriverSerial__init();
+    // DriverSerial__init();
     Vfs__init();
     Process__init(&cspace, _cpio_archive, _cpio_archive_end);
 
