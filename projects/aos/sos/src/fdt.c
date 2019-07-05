@@ -1,4 +1,5 @@
 #include "vfs.h"
+#include <stdio.h>
 
 FDT_t VfsFdt__init(){
     FDT_t fdt = DynamicArr__init(sizeof(uint64_t));
@@ -57,6 +58,7 @@ vfs_write_t VfsFdt__getWriteF(FDT_t fdt, uint64_t fd){
 
 
 void VfsFdt__callback(int64_t err, void * private_data){
+
     fdt_task_t task = DynamicArr__get(
         Vfs__getFdtTaskArr(), (size_t) private_data
     );
@@ -64,17 +66,21 @@ void VfsFdt__callback(int64_t err, void * private_data){
     switch (task->type)
     {
     case OPEN:
-        if (err > 0)
-        {
+        if (err > 0) {
             // alloc a fd success 
-            err = DynamicArr__add(task->fdt, (void *) err);
+            err = DynamicArr__add(task->fdt, & err);
         }
-        task->cb(err, task->private_data);        
         break;
+    case CLOSE:
+        if (err == 0){
+            // delete the slot in the fdt 
+            DynamicArr__del(task->fdt, task->fd);
+        }
     default:
         break;
     }
-    
+
+    task->cb(err, task->private_data);        
     // delete the task in the array 
     DynamicArr__del(
         Vfs__getFdtTaskArr(), (size_t) private_data
@@ -92,6 +98,7 @@ void VfsFdt__openAsync(
     task.fdt = fdt;
     task.type = OPEN;
     size_t id= DynamicArr__add(Vfs__getFdtTaskArr(), &task);
+
     Vfs__openAsync(path, mode, VfsFdt__callback, (void *) id);
 }
 
@@ -111,6 +118,7 @@ void VfsFdt__closeAsync(
     task.cb = cb; 
     task.private_data = private_data;
     task.fdt = fdt;
+    task.fd = fd;
     task.type = CLOSE;
     size_t id= DynamicArr__add(Vfs__getFdtTaskArr(), &task);
 

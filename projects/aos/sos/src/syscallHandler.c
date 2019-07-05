@@ -13,39 +13,6 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
     printf("Unkown Syscall\n");
 }
 
-
-static void __syscall_open(syscallMessage_t msg){
-    char * path = Process__mapOutShareRegion(
-        msg->tcb, msg->words[0], PATH_SIZE_MAX
-    );
-
-    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
-    // printf("try to invoke the open \n");
-    // make sure it won't overflow 
-
-    seL4_SetMR(
-        0, VfsFdt__open(msg->tcb->fdt, path, msg->words[1])
-    );
-
-    // return 
-    seL4_Send(msg->replyCap, reply_msg); 
-    /* return and clean up  */
-    Process__unmapShareRegion(msg->tcb);
-    syscallEvents__finish(msg);
-}
-
-
-static void __syscall_close(syscallMessage_t msg){
-    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
-    // printf("try to invoke the open \n");
-    // make sure it won't overflow 
-    seL4_SetMR(0, VfsFdt__close(msg->tcb->fdt, msg->words[0]));
-    // return 
-    seL4_Send(msg->replyCap, reply_msg);    
-}
-
-
-
 void __syscall_vfs_callback(uint64_t len, void * data){
     syscallMessage_t msg = (syscallMessage_t) data;
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
@@ -54,6 +21,37 @@ void __syscall_vfs_callback(uint64_t len, void * data){
     // finish it by calling a callback 
     syscallEvents__finish(msg);
     Process__unmapShareRegion(msg->tcb);
+}
+
+void __syscall_vfs_async_callback(int64_t len, void * data){
+    printf("i have return a open call\n");
+
+    syscallMessage_t msg = (syscallMessage_t) data;
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
+    seL4_SetMR(0, len);
+    seL4_Send(msg->replyCap, reply_msg);
+    // finish it by calling a callback 
+    syscallEvents__finish(msg);
+    Process__unmapShareRegion(msg->tcb);
+}
+
+static void __syscall_open(syscallMessage_t msg){
+    char * path = Process__mapOutShareRegion(
+        msg->tcb, msg->words[0], PATH_SIZE_MAX
+    );
+
+    VfsFdt__openAsync(
+        msg->tcb->fdt,path, msg->words[1], __syscall_vfs_async_callback,msg
+    );
+}
+
+static void __syscall_close(syscallMessage_t msg){
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+    // printf("try to invoke the open \n");
+    // make sure it won't overflow 
+    seL4_SetMR(0, VfsFdt__close(msg->tcb->fdt, msg->words[0]));
+    // return 
+    seL4_Send(msg->replyCap, reply_msg);    
 }
 
 static void __syscall_read(syscallMessage_t msg){

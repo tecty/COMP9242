@@ -101,7 +101,6 @@ void Vfs__openAsync(
     task_id = DynamicArr__add(vfs_s.tasks, &task);
     // TODO: async iov 
     oft->mode = flags;
-
     // call the async open 
     if (strcmp(path, "console") == 0)
     {

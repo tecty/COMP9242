@@ -42,6 +42,15 @@ void Vfs__openAsync(
 void Vfs__closeAsync(
     uint64_t oftd, vfs_callback_t cb, void * private_data 
 );
+
+void VfsFdt__openAsync(
+    FDT_t fdt, char * path, uint64_t mode, vfs_callback_t cb, 
+    void * private_data
+);
+void VfsFdt__closeAsync(
+    FDT_t fdt, uint64_t fd, vfs_callback_t cb, 
+    void * private_data
+);
 void VfsFdt__readAsync(
     FDT_t fdt, uint64_t fd, void * buf, uint64_t len, vfs_callback_t cb,
     void * private_data
@@ -85,6 +94,7 @@ typedef struct fdt_task
     vfs_callback_t cb;
     enum vfs_task_type type;
     FDT_t fdt;
+    size_t fd;
     void * private_data;
 } * fdt_task_t;
 
