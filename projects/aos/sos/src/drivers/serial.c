@@ -16,7 +16,7 @@ typedef struct iovec
     void* buf;
     uint64_t len;
     void* data;
-    devices_read_callback_t callback;
+    vfs_callback_t callback;
 } * iovec_t;
 
 /* Two types of callbacks */
@@ -81,7 +81,7 @@ void reply_call_back(UNUSED struct serial* sptr, int len){
 }
 
 void DriverSerial__read(
-    void * buf, uint64_t len, void * data, devices_read_callback_t callback
+    void * buf, uint64_t len, void * data, vfs_callback_t callback
 ){
     // printf("\n\nI want to read\n");
     struct iovec io;

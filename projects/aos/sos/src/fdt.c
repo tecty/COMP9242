@@ -39,19 +39,6 @@ sos_iovec_t VfsFdt__getIovByFd(FDT_t fdt, uint64_t fd){
     return NULL;
 }
 
-vfs_read_t VfsFdt__getReadF(FDT_t fdt, uint64_t fd){
-    // TODO: Mode check, Error checking
-    return VfsFdt__getIovByFd(fdt, fd)->read_f;
-}
-
-vfs_write_t VfsFdt__getWriteF(FDT_t fdt, uint64_t fd){
-    // TODO: Mode check, Error checking
-    // printf ("I have got the fdt_addr is  %p\n", fdt);
-    // int64_t oftd = VfsFdt__getOftd(fdt, fd);
-    // printf ("I have got the oftd is %ld\n", oftd);
-    return VfsFdt__getIovByFd(fdt, fd)->write_f;
-}
-
 /**
  * Async Interfaces
  */
