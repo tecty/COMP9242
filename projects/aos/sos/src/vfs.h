@@ -7,9 +7,24 @@ typedef void (* vfs_callback_t)(int64_t len,void * data);
 /**
  * Open file table part 
  */
+typedef void (* vfs_open_t)(
+    char * path, int flags, void * buf,
+    vfs_callback_t cb, void * private_data
+);
+typedef void (* vfs_close_t)(
+    void * context, vfs_callback_t cb, void * private_data
+);
+typedef void (* vfs_stat_t)(
+    char * path, void * buf, vfs_callback_t cb, void * private_data
+);
 typedef void (* vfs_read_t)( 
-    void * buf, uint64_t len, void * data, vfs_callback_t callback);
-typedef uint64_t (* vfs_write_t)(void* buf, uint64_t len);
+    void * context, void * buf, uint64_t len, vfs_callback_t cb, 
+    void * private_data
+);
+typedef void (* vfs_write_t)(
+    void * context, void * buf, uint64_t len, vfs_callback_t cb,
+    void * private_data
+);
 
 
 void Vfs__init();
@@ -68,8 +83,11 @@ void VfsFdt__getDirEntryAsync(
 /* Private */
 typedef struct sos_iovec
 {
-    vfs_read_t read_f;
-    vfs_write_t write_f;
+    vfs_open_t   open_f;
+    vfs_close_t  close_f;
+    vfs_stat_t   stat_f;
+    vfs_read_t   read_f;
+    vfs_write_t  write_f;
 }* sos_iovec_t;
 
 typedef struct open_file
@@ -96,6 +114,7 @@ typedef struct fdt_task
 
 sos_iovec_t Vfs__getIov(int64_t ofd);
 DynamicArr_t Vfs__getFdtTaskArr();
+void * Vfs__getContextByOftd(uint64_t oftd);
 
 
 #endif // VFS_H

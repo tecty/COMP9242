@@ -2,14 +2,18 @@
 
 #include "drivers/serial.h"
 #include "drivers/nfs.h"
+#include "drivers/devnull.h"
 #include <stdio.h>
 
 
 
 static struct sos_iovec serial_iov = 
 {
-    .read_f = DriverSerial__read,
-    .write_f = DriverSerial__write
+    .open_f   = DriverNull__open,
+    .close_f  = DriverNull__close,
+    .stat_f   = DriverNull__stat,
+    .read_f   = DriverSerial__read,
+    .write_f  = DriverSerial__write
 };
 
 
@@ -126,4 +130,13 @@ sos_iovec_t Vfs__getIov(int64_t ofd){
     if (oft == NULL) return NULL;
     // ELSE
     return oft->iov;
+}
+
+void * Vfs__getContextByOftd(uint64_t oftd){
+    if (oftd == 0) {
+        return NULL;
+    }
+    
+    open_file_t oft = DynamicArr__get(vfs_s.open_file_table, oftd - 1);
+    return oft->data;
 }

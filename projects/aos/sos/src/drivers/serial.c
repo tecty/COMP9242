@@ -55,9 +55,15 @@ void DriverSerial__init(){
     try_reg_callback();
 }
 
-uint64_t DriverSerial__write(void* buf, uint64_t len){
+// uint64_t DriverSerial__write(void* buf, uint64_t len)
+void DriverSerial__write(
+    UNUSED void * context, void * buf, uint64_t len, vfs_callback_t cb,
+    void * private_data
+){
     // printf("I want to write %s\n", (char *) buf);
-    return serial_send(serial_s.serial_ptr, (char *) buf, len);
+    cb(
+        serial_send(serial_s.serial_ptr, (char *) buf, len), private_data
+    );
 }
 
 
@@ -80,15 +86,19 @@ void reply_call_back(UNUSED struct serial* sptr, int len){
     try_reg_callback();
 }
 
+// void DriverSerial__read(
+//     void * buf, uint64_t len, void * data, vfs_callback_t callback
+// )
 void DriverSerial__read(
-    void * buf, uint64_t len, void * data, vfs_callback_t callback
+    UNUSED void * context, void * buf, uint64_t len, vfs_callback_t cb, 
+    void * private_data
 ){
     // printf("\n\nI want to read\n");
     struct iovec io;
     io.buf       = buf;
     io.len       = len;
-    io.data      = data;
-    io.callback  = callback;
+    io.data      = private_data;
+    io.callback  = cb;
     DynamicQ__enQueue(serial_s.read_q, &io);
     try_reg_callback();
 }

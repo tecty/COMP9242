@@ -39,6 +39,11 @@ sos_iovec_t VfsFdt__getIovByFd(FDT_t fdt, uint64_t fd){
     return NULL;
 }
 
+void * VfsFdt__getContextByFd(FDT_t fdt, uint64_t fd){
+    uint64_t oftd = VfsFdt__getOftd(fdt, fd);
+    if( oftd > 0) return Vfs__getContextByOftd(oftd);
+    return NULL;
+}
 /**
  * Async Interfaces
  */
@@ -132,8 +137,9 @@ void VfsFdt__readAsync(
     task.type = READ;
     size_t id= DynamicArr__add(Vfs__getFdtTaskArr(), &task);
 
-    // TODO: async here 
-    iov->read_f(buf, len,(void *) id, VfsFdt__callback);
+    iov->read_f(
+        VfsFdt__getContextByFd(fdt, fd),buf, len, VfsFdt__callback, (void *)id
+    );
 }
 
 void VfsFdt__writeAsync(
@@ -154,10 +160,7 @@ void VfsFdt__writeAsync(
     task.type = WRITE;
     size_t id= DynamicArr__add(Vfs__getFdtTaskArr(), &task);
 
-    // TODO: async here 
-    // consume the task
-    VfsFdt__callback(
-        iov->write_f(buf, len),
-        (void *) id
+    iov->write_f(
+        VfsFdt__getContextByFd(fdt, fd), buf, len, VfsFdt__callback, (void *) id
     );
 }
