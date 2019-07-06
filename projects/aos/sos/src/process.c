@@ -43,8 +43,11 @@ static inline seL4_Word Process__vaddr4kAlign(seL4_Word vaddr){
     return vaddr & (~ ((1<<12)-1) );
 }
 
-static inline seL4_Word Process__size4kAlign(seL4_Word size){
+static inline seL4_Word Process__size4kAlign(seL4_Word vaddr, seL4_Word size){
     // Src: adt/addressRegion
+    seL4_Word vaddr_top = vaddr + size;
+    // recalculat the actual size i need to map 
+    size = vaddr_top - Process__vaddr4kAlign(vaddr);
     seL4_Word mask = ~((1<<12) - 1);
     size = (size + ((1<<12) - 1)) & mask;
     return size;
@@ -213,7 +216,7 @@ void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word siz
     if (proc->shareRegion != NULL) Process__unmapShareRegion(proc);
     proc->shareRegion = MappedRegion__init();
     proc->shareRegion->crrt = ContinueRegion__requestRegion(process_s.contRegion, 1);
-    size = Process__size4kAlign(size);
+    size = Process__size4kAlign(vaddr,size);
     // how much page need to map 
     size >>= 12;
 
@@ -239,7 +242,7 @@ void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word siz
 }
 
 void * Process__mapOutShareRegionForce(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size){
-    seL4_Word size_aligned = Process__size4kAlign(size);
+    seL4_Word size_aligned = Process__size4kAlign(vaddr,size);
     // how much page need to map 
     size_aligned >>= 12;
     seL4_Word vaddr_aligned = Process__vaddr4kAlign(vaddr);
