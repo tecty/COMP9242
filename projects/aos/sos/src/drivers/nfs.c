@@ -243,8 +243,8 @@ void DriverNfs__close(
  * GET_DIR_ENTRY()
  */
 void DriverNfs__getDirEntry(
-    UNUSED void * context, size_t loc, void * buf, driver_nfs_callback_t cb,
-    void * private_data
+    UNUSED void * context, size_t loc, void * buf, size_t buf_len,
+    driver_nfs_callback_t cb, void * private_data
 ){
     nfs_seekdir(nfs_s.nfs_context, nfs_s.root,loc);
     struct nfsdirent* entry = nfs_readdir(nfs_s.nfs_context, nfs_s.root);
@@ -252,7 +252,7 @@ void DriverNfs__getDirEntry(
 
     int ret;
     if (entry) {
-        strcpy(buf, entry->name);
+        strncpy(buf, entry->name, buf_len);
         ret = 0;
     } else {
         ret = 1;

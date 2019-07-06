@@ -84,6 +84,12 @@ void * Process__getShareRegionStart(sos_pcb_t proc){
         BIT(12) * ContinueRegionRegion__getStart(proc->shareRegion->crrt)
     );
 }
+void * Process__getShareRegion2Start(sos_pcb_t proc){
+    return (void *) (
+        SOS_SHARE_BUF_START +
+        BIT(12) * ContinueRegionRegion__getStart(proc->shareRegion2->crrt)
+    );
+}
 uint64_t Process__getShareRegionSize(sos_pcb_t proc){
     return BIT(12) * ContinueRegionRegion__getSize(proc->shareRegion->crrt);
 }
@@ -206,19 +212,25 @@ seL4_Error Process__mapOut(
 void Process__unmapShareRegion(sos_pcb_t proc){
     // NULL ==> the thread hasn't mapped anything into sos
     // Fast path and Null protect 
-    if(proc->shareRegion == NULL) return;
-    MappedRegion__free(proc->shareRegion);
-    proc->shareRegion = NULL;
+    if(proc->shareRegion != NULL) {
+        MappedRegion__free(proc->shareRegion);
+        proc->shareRegion = NULL;
+    }
+    if (proc->shareRegion2 != NULL){
+        MappedRegion__free(proc->shareRegion2);
+        proc->shareRegion2 = NULL;
+    }
 }
 
 void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size){
     // protect share region is always one
     if (proc->shareRegion != NULL) Process__unmapShareRegion(proc);
     proc->shareRegion = MappedRegion__init();
-    proc->shareRegion->crrt = ContinueRegion__requestRegion(process_s.contRegion, 1);
-    size = Process__size4kAlign(vaddr,size);
     // how much page need to map 
+    size = Process__size4kAlign(vaddr,size);
     size >>= 12;
+    proc->shareRegion->crrt =
+        ContinueRegion__requestRegion(process_s.contRegion, size);
 
     seL4_Word vaddr_aligned = Process__vaddr4kAlign(vaddr);
 
@@ -240,6 +252,40 @@ void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word siz
 
     return proc->share_buffer_vaddr + (vaddr & ((1<<12) -1));
 }
+
+
+void * Process__mapOutShareRegion2(
+    sos_pcb_t proc, seL4_Word vaddr, seL4_Word size
+){
+    // protect share region is always one
+    if (proc->shareRegion2 != NULL) Process__unmapShareRegion(proc);
+    proc->shareRegion2 = MappedRegion__init();
+    size = Process__size4kAlign(vaddr,size);
+    // how much page need to map 
+    size >>= 12;
+    proc->shareRegion2->crrt = 
+        ContinueRegion__requestRegion(process_s.contRegion, size);
+
+    seL4_Word vaddr_aligned = Process__vaddr4kAlign(vaddr);
+
+    for (size_t i = 0; i < size; i++)
+    {
+        if (
+            Process__mapOut(
+                proc, vaddr_aligned,
+                (seL4_Word)Process__getShareRegion2Start(proc) +(PAGE_SIZE_4K * i), 
+                proc->shareRegion2->capList
+            )!= seL4_NoError
+        ) {
+            MappedRegion__free(proc->shareRegion2);
+            return NULL;
+        };
+    }
+    
+    return Process__getShareRegion2Start(proc) + (vaddr & ((1<<12) -1));
+}
+
+
 
 void * Process__mapOutShareRegionForce(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size){
     seL4_Word size_aligned = Process__size4kAlign(vaddr,size);
@@ -415,6 +461,7 @@ uint32_t Process__startProc(char *app_name, seL4_CPtr ep)
     the_proc.frameList    = DynamicQ__init(sizeof(frame_ref_t));
     the_proc.addressSpace = Process__addrSpaceInit();
     the_proc.shareRegion  = NULL;
+    the_proc.shareRegion2 = NULL;
 
 
     the_proc.vspace_ut = Process__allocRetype(

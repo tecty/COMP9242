@@ -2,6 +2,7 @@
 #include "drivers/serial.h"
 #include "syscallEvents.h"
 #include <clock/clock.h>
+#include "drivers/sos_stat.h"
 
 #define PATH_SIZE_MAX (1024)
 
@@ -130,6 +131,42 @@ static void __syscall_sys_brk(syscallMessage_t msg){
     syscallEvents__finish(msg);
 }
 
+static void __syscall_stat(syscallMessage_t msg){
+    // get the sent word 
+    seL4_Word path = msg->words[0];
+    seL4_Word buf  = msg->words[1];
+
+    void * sos_buf  = Process__mapOutShareRegion(
+        msg->tcb, buf, sizeof(struct sos_stat)
+    );
+    void * sos_path = Process__mapOutShareRegion2(msg->tcb, path, 0x1000);
+    // printf("sos buf at vaddr %p\n", sos_buf);
+
+    if (sos_buf == NULL || sos_path == NULL){
+        __syscall_vfs_callback(-1, msg);
+    } else {
+        VfsFdt__statAsync(sos_path, sos_buf, __syscall_vfs_callback, msg);
+    }
+}
+
+static void __syscall_get_dir_ent(syscallMessage_t msg){
+    // get the sent word 
+    size_t loc     = msg->words[0];
+    seL4_Word buf  = msg->words[1];
+    size_t buf_len = msg->words[2];
+
+    void * sos_buf = Process__mapOutShareRegion(msg->tcb, buf, buf_len);
+    // printf("sos buf at vaddr %p\n", sos_buf);
+
+    if (sos_buf == NULL){
+        __syscall_vfs_callback(-1, msg);
+    } else {
+        VfsFdt__getDirEntryAsync(
+            loc, sos_buf, buf_len, __syscall_vfs_callback, msg
+        );
+    }
+}
+
 void syscallHandler__init(cspace_t *cspace){
     rootCspace = cspace;
     for (size_t i = 0; i < SYSCALL_MAX; i++){
@@ -145,6 +182,8 @@ void syscallHandler__init(cspace_t *cspace){
     handles[SOS_TIMESTAMP] = __syscall_timestamp;
     handles[SOS_US_SLEEP]  = __syscall_us_sleep;
     handles[SOS_SYS_BRK]   = __syscall_sys_brk;
+    handles[SOS_STAT]      = __syscall_stat;
+    handles[SOS_DIRENT]    = __syscall_get_dir_ent;
 
 }
 

@@ -69,15 +69,12 @@ void VfsFdt__writeAsync(
     FDT_t fdt, uint64_t fd, void * buf, uint64_t len, vfs_callback_t cb, 
     void * private_data
 );
-
-/**
- * This might do it later
- */
 void VfsFdt__statAsync(
-    FDT_t fdt, void * buf, vfs_callback_t cb, void * private_data
+    char * path, void * buf, vfs_callback_t cb, void * private_data
 );
 void VfsFdt__getDirEntryAsync(
-    FDT_t fdt, void * buf, uint64_t loc, vfs_callback_t cb, void * private_data
+    uint64_t loc, void * buf, uint64_t buf_len, vfs_callback_t cb, 
+    void * private_data
 );
 
 /* Private */

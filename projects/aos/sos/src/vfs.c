@@ -136,7 +136,37 @@ void Vfs__closeAsync(
             Vfs__getContextByOftd(oftd), Vfs__callback, (void *) task_id
         );
     }
-    
+}
+
+void VfsFdt__statAsync(
+    char * path, void * buf, vfs_callback_t cb,
+    void * private_data
+){
+    uint64_t task_id;
+    struct vfs_task task;
+    task.cb = cb;
+    task.type = STAT;
+    task.private_data = private_data;
+    task_id = DynamicArr__add(vfs_s.tasks, &task);
+    // call the call back
+    // call the iov to clean up the struct store in oft 
+    DriverNfs__stat(path, buf, Vfs__callback, (void *) task_id);
+}
+
+void VfsFdt__getDirEntryAsync(
+    uint64_t loc, void * buf, uint64_t buf_len, vfs_callback_t cb, 
+    void * private_data
+){
+    uint64_t task_id;
+    struct vfs_task task;
+    task.cb = cb;
+    task.type = GETDIRENT;
+    task.private_data = private_data;
+    task_id = DynamicArr__add(vfs_s.tasks, &task);
+    // call the iov to clean up the struct store in oft 
+    DriverNfs__getDirEntry(
+        NULL,loc, buf, buf_len, Vfs__callback, (void *) task_id
+    );
 }
 
 /**

@@ -31,6 +31,7 @@ struct sos_pcb{
     DynamicQ_t capList;
     DynamicQ_t frameList;
     sos_mapped_region_t shareRegion;
+    sos_mapped_region_t shareRegion2;
 };
 
 void Process__init(
@@ -42,6 +43,9 @@ void Process__declearAddressRegion(
     sos_pcb_t proc, enum addressRegionTypes_e type, seL4_Word vaddr, seL4_Word size
 );
 void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size);
+void * Process__mapOutShareRegion2(
+    sos_pcb_t proc, seL4_Word vaddr, seL4_Word size
+);
 void * Process__mapOutShareRegionForce(sos_pcb_t proc, seL4_Word vaddr, seL4_Word size);
 void Process__unmapShareRegion(sos_pcb_t proc);
 

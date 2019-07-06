@@ -40,8 +40,8 @@ void DriverNfs__write(
 // not need callbacks, I keep the callback strategy,
 // but call the callback directly
 void DriverNfs__getDirEntry(
-    void * context,size_t loc, void * buf, driver_nfs_callback_t cb,
-    void * private_data
+    void * context, size_t loc, void * buf, size_t buf_len,
+    driver_nfs_callback_t cb, void * private_data
 );
 
 
