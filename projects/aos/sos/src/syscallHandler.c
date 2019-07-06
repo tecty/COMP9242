@@ -155,8 +155,9 @@ static void __syscall_get_dir_ent(syscallMessage_t msg){
     seL4_Word buf  = msg->words[1];
     size_t buf_len = msg->words[2];
 
+    
     void * sos_buf = Process__mapOutShareRegion(msg->tcb, buf, buf_len);
-    // printf("sos buf at vaddr %p\n", sos_buf);
+    // printf("DEBUG Entsos buf at vaddr %p\n", sos_buf);
 
     if (sos_buf == NULL){
         __syscall_vfs_callback(-1, msg);

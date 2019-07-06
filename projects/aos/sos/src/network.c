@@ -47,6 +47,7 @@
 #include "irq.h"
 #include "ut.h"
 
+#include "drivers/nfs.h"
 
 #ifndef SOS_NFS_DIR
 #  ifdef CONFIG_SOS_NFS_DIR
@@ -257,4 +258,9 @@ void nfs_mount_cb(int status, UNUSED struct nfs_context *nfs, void *data,
     }
 
     printf("Mounted nfs dir %s\n", SOS_NFS_DIR);
+    DriverNfs__init();
+}
+
+struct nfs_context * get_nfs_context(){
+    return nfs;
 }

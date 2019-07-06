@@ -1,13 +1,17 @@
 #include "nfs.h"
+#include "../network.h"
 #include <nfsc/libnfs.h>
 #include <adt/dynamic.h>
 #include "sos_stat.h"
 #include <fcntl.h>
 #include <string.h>
 
+#undef PACKED
+#define SOS_NFS_DIR "/var/lib/tftpboot/tecty/"
 #include <aos/sel4_zf_logif.h>
 
-#define NFS_ROOT "/var/lib/tftpboot/tecty"
+// #define NFS_ROOT "/var/lib/tftpboot/tecty"
+#define NFS_ROOT "/"
 #define NFS_PATH_MAX (1024)
 
 char path_buf[NFS_PATH_MAX];
@@ -36,19 +40,27 @@ static struct {
 void DriverNfs__initCallback(
     int err, UNUSED struct nfs_context * nfs, void * data, UNUSED void* private_data
 ){
+    printf("DEBUG:Init has been called back\n");
     if (err < 0){
         ZF_LOGE("Open root directory fault :%s", (char *) data);
         return;
     }
     nfs_s.root = (struct nfsdir *) data;
+    
+
+    printf(
+        "\n\nDEBUG: Nfs open root with %s \n", 
+        nfs_readdir(nfs_s.nfs_context, nfs_s.root)->name
+    );
 }
 
 void DriverNfs__init(){
-    nfs_s.nfs_context = nfs_init_context();
-    nfs_opendir_async(
-        nfs_s.nfs_context, NFS_ROOT, 
-        DriverNfs__initCallback, NULL
-    );
+    // nfs_s.nfs_context = nfs_init_context();
+    nfs_s.nfs_context = get_nfs_context();
+    nfs_opendir_async(nfs_s.nfs_context, "/", DriverNfs__initCallback, NULL);
+
+    printf("DEBUG: NFS try to init itself %p\n",nfs_s.nfs_context);
+    printf("I want to mount to %s\n", SOS_NFS_DIR);
     nfs_s.tasks = DynamicArr__init(sizeof(struct driver_nfs_task));
 }
 void DriverNfs__free(){
@@ -246,8 +258,10 @@ void DriverNfs__getDirEntry(
     UNUSED void * context, size_t loc, void * buf, size_t buf_len,
     driver_nfs_callback_t cb, void * private_data
 ){
+    printf("DEBUG: I am seeking the dir\n");
     nfs_seekdir(nfs_s.nfs_context, nfs_s.root,loc);
     struct nfsdirent* entry = nfs_readdir(nfs_s.nfs_context, nfs_s.root);
+    printf("I got dir %s\n", entry->name );
     nfs_rewinddir(nfs_s.nfs_context, nfs_s.root);
 
     int ret;

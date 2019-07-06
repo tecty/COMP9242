@@ -48,7 +48,7 @@ void Vfs__init(){
 
     
     // initial my fs
-    DriverNfs__init();
+    // DriverNfs__init();
     DriverSerial__init();
 }
 
@@ -79,9 +79,12 @@ void Vfs__close(uint64_t ofd){
  * Async transaction of open and close
  */
 void Vfs__callback(int64_t err, void * private_data){
+    printf("I want to return %ld\n", err );
     vfs_task_t task = DynamicArr__get(vfs_s.tasks, (size_t) private_data);
-    if (err < 0 || (task->type == CLOSE && err == 0))
-    {
+    if (
+        (err < 0 && task->type == OPEN) ||
+        (task->type == CLOSE && err == 0)
+    ){
         // fail the open 
         DynamicArr__del(vfs_s.open_file_table, task-> oftd - 1);
     } else if (err == 0 && task->type == OPEN) {
@@ -163,6 +166,7 @@ void VfsFdt__getDirEntryAsync(
     task.type = GETDIRENT;
     task.private_data = private_data;
     task_id = DynamicArr__add(vfs_s.tasks, &task);
+    printf("DEBUG: Entry try to call the nfs driver \n");
     // call the iov to clean up the struct store in oft 
     DriverNfs__getDirEntry(
         NULL,loc, buf, buf_len, Vfs__callback, (void *) task_id

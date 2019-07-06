@@ -278,14 +278,21 @@ static int dir(int argc, char **argv)
     }
 
     while (1) {
+        printf("I try to get ent\n");
         r = sos_getdirent(i, buf, BUF_SIZ);
+        printf("I got the ent\n");
+
         if (r < 0) {
             printf("dirent(%d) failed: %d\n", i, r);
             break;
         } else if (!r) {
             break;
         }
+        printf("I try to get the stat\n");
+
         r = sos_stat(buf, &sbuf);
+        printf("I got the stat\n");
+
         if (r < 0) {
             printf("stat(%s) failed: %d\n", buf, r);
             break;
