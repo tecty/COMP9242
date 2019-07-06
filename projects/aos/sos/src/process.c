@@ -201,6 +201,9 @@ seL4_Error Process__mapOut(
 }
 
 void Process__unmapShareRegion(sos_pcb_t proc){
+    // NULL ==> the thread hasn't mapped anything into sos
+    // Fast path and Null protect 
+    if(proc->shareRegion == NULL) return;
     MappedRegion__free(proc->shareRegion);
     proc->shareRegion = NULL;
 }

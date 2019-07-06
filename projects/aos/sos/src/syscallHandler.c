@@ -15,6 +15,7 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
 
 
 void __syscall_vfs_callback(int64_t len, void * data){
+    // printf("Debug: vfs try to callback with %ld\n", len);
     syscallMessage_t msg = (syscallMessage_t) data;
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
     seL4_SetMR(0, len);

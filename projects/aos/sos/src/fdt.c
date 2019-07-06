@@ -72,11 +72,12 @@ void VfsFdt__callback(int64_t err, void * private_data){
         break;
     }
 
-    task->cb(err, task->private_data);        
+    task->cb(err, task->private_data);    
     // delete the task in the array 
     DynamicArr__del(
         Vfs__getFdtTaskArr(), (size_t) private_data
     );
+
 }
 
 void VfsFdt__openAsync(
