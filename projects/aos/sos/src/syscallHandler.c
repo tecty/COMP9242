@@ -24,8 +24,6 @@ void __syscall_vfs_callback(uint64_t len, void * data){
 }
 
 void __syscall_vfs_async_callback(int64_t len, void * data){
-    printf("i have return a open call\n");
-
     syscallMessage_t msg = (syscallMessage_t) data;
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
     seL4_SetMR(0, len);
@@ -63,32 +61,21 @@ static void __syscall_read(syscallMessage_t msg){
     if (sos_buf == NULL)
     {
         // clean up, return error 
-        seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
-        seL4_SetMR(0, -1);
-        seL4_Send(msg->replyCap, reply_msg);
-        // finish it by calling a callback 
-        syscallEvents__finish(msg);
-        return;
+        __syscall_vfs_async_callback(-1, msg);
+    } else{
+        // valid in some sence 
+        VfsFdt__readAsync(
+            msg->tcb->fdt, file, sos_buf, len, __syscall_vfs_async_callback, msg
+        );
     }
-    
-    // printf("I have got read len %lu\n",len);
-    if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
-    VfsFdt__getReadF(msg->tcb->fdt, file)(
-        sos_buf, len, msg, __syscall_vfs_callback
-    );
 }
 
 static void __syscall_write(syscallMessage_t msg){
     // get the sent word 
-    size_t file = msg->words[0];
-    seL4_Word buf =  msg->words[1];
-    size_t len = msg->words[2];
+    size_t file   = msg->words[0];
+    seL4_Word buf = msg->words[1];
+    size_t len    = msg->words[2];
 
-    // upperbound of the data I can get
-    if (len > PAGE_SIZE_4K) len = PAGE_SIZE_4K;
-
-    // ret from pico sent 
-    // ret might be -1;
     // return the error if any let userlevel deal with error 
     // printf("I want to write at %ld\n",file);
     // printf("I want to print with data in %p\n", (void *) buf);
@@ -98,26 +85,13 @@ static void __syscall_write(syscallMessage_t msg){
     void * sos_buf = Process__mapOutShareRegion(msg->tcb, buf, len);
     // printf("sos buf at vaddr %p\n", sos_buf);
 
-    int ret;
-    if (sos_buf == NULL)
-    {
-        // error, client vaddr hasn't found 
-        ret = -1;
+    if (sos_buf == NULL){
+        __syscall_vfs_async_callback(-1, msg);
     } else {
-        // function to function pointer ==> use function pointer to call the function
-        ret = VfsFdt__getWriteF(msg->tcb->fdt, file)(sos_buf, len);
-        // unmap the region for useage in other area
-        Process__unmapShareRegion(msg->tcb);
+        VfsFdt__writeAsync(
+            msg->tcb->fdt, file, sos_buf, len, __syscall_vfs_async_callback, msg
+        );
     }
-    
-    /* construct a reply message of length 1 */
-    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
-    /* Set the first (and only) word in the message to 0 */
-    seL4_SetMR(0, ret);
-    /* Send the reply to the saved reply capability. */
-    seL4_Send(msg->replyCap, reply_msg);
-    // finish it by calling a callback 
-    syscallEvents__finish(msg);
 }
 
 

@@ -148,6 +148,7 @@ void VfsFdt__readAsync(
     // TODO: async here 
     iov->read_f(buf, len,(void *) id, VfsFdt__callback);
 }
+
 void VfsFdt__writeAsync(
     FDT_t fdt, uint64_t fd, void * buf, uint64_t len, vfs_callback_t cb, 
     void * private_data
@@ -163,7 +164,7 @@ void VfsFdt__writeAsync(
     task.private_data = private_data;
     task.fd = fd;
     task.fdt = fdt;
-    task.type = READ;
+    task.type = WRITE;
     size_t id= DynamicArr__add(Vfs__getFdtTaskArr(), &task);
 
     // TODO: async here 
