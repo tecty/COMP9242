@@ -3,8 +3,14 @@
 #include <adt/dynamic.h>
 #include "sos_stat.h"
 #include <fcntl.h>
+#include <string.h>
 
 #include <aos/sel4_zf_logif.h>
+
+#define NFS_ROOT "/var/lib/tftpboot/tecty"
+#define NFS_PATH_MAX (1024)
+
+char path_buf[NFS_PATH_MAX];
 
 enum DriverNfs_op {
     OPEN, CLOSE, READ, WRITE, STAT
@@ -17,7 +23,6 @@ typedef struct driver_nfs_task {
     enum DriverNfs_op op;
     void * private_data;
 }* driver_nfs_task_t;
-
 
 
 static struct {
@@ -41,7 +46,7 @@ void DriverNfs__initCallback(
 void DriverNfs__init(){
     nfs_s.nfs_context = nfs_init_context();
     nfs_opendir_async(
-        nfs_s.nfs_context, "/var/lib/tftpboot/tecty", 
+        nfs_s.nfs_context, NFS_ROOT, 
         DriverNfs__initCallback, NULL
     );
     nfs_s.tasks = DynamicArr__init(sizeof(struct driver_nfs_task));
@@ -51,6 +56,19 @@ void DriverNfs__free(){
     nfs_destroy_context(nfs_s.nfs_context);
     DynamicArr__free(nfs_s.tasks);
 }
+
+/**
+ * Helper function might need
+ */
+void DriverNfs__setPath(char * path){
+    path_buf[0] = '\0';
+    uint32_t root_path_len = strlen(NFS_ROOT);
+    strcat(path_buf, NFS_ROOT);
+    // gracefully fault when the path is overflow
+    // since we only support one layer, 1K is enought
+    strncat(path_buf, path,NFS_PATH_MAX - root_path_len - 1);
+}
+
 
 /**
  * oft operation, iovec things
@@ -117,8 +135,11 @@ void DriverNfs__open(
     dnt.op           = OPEN;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
+    
+    DriverNfs__setPath(path);
+    
     if (!nfs_open_async(
-            nfs_s.nfs_context, path, flags, DriverNfs__callback, (void *) id
+            nfs_s.nfs_context, path_buf, flags, DriverNfs__callback, (void *) id
     )){
         ZF_LOGE("NFS__async call failed");
         DynamicArr__del(nfs_s.tasks, id);
@@ -140,8 +161,11 @@ void DriverNfs__stat(
     dnt.op           = STAT;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
+    
+    DriverNfs__setPath(path);
+    
     if (!nfs_stat64_async(
-            nfs_s.nfs_context, path, DriverNfs__callback, (void *) id
+            nfs_s.nfs_context, path_buf, DriverNfs__callback, (void *) id
     )){
         ZF_LOGE("NFS__async call failed");
         DynamicArr__del(nfs_s.tasks, id);

@@ -16,6 +16,13 @@ static struct sos_iovec serial_iov =
     .write_f  = DriverSerial__write
 };
 
+static struct sos_iovec nfs_iov = {
+    .open_f   = DriverNfs__open,
+    .close_f  = DriverNfs__close,
+    .stat_f   = DriverNfs__stat,
+    .read_f   = DriverNfs__read,
+    .write_f  = DriverNfs__write
+};
 
 
 typedef struct vfs_task
@@ -53,6 +60,7 @@ DynamicArr_t Vfs__getFdtTaskArr(){
  * Vfs only need to manage open and close, else could be managed by fdt
  */
 int64_t Vfs__open(char * path, uint64_t mode){
+    // legacy code, support for syncorniouse proc init
     if (strcmp(path, "console") == 0){
         struct open_file of;
         of.iov = &serial_iov;
@@ -63,6 +71,7 @@ int64_t Vfs__open(char * path, uint64_t mode){
 }
 
 void Vfs__close(uint64_t ofd){
+    // legacy code, support for syncorniouse proc init
     return DynamicArr__del(vfs_s.open_file_table, ofd-1);
 }
 
@@ -97,15 +106,14 @@ void Vfs__openAsync(
     task.oftd ++; 
 
     task_id = DynamicArr__add(vfs_s.tasks, &task);
-    // TODO: async iov 
     oft->mode = flags;
     // call the async open 
-    if (strcmp(path, "console") == 0)
-    {
+    if (strcmp(path, "console") == 0) {
         oft->iov  = &serial_iov;
-        oft->data = NULL;
-        Vfs__callback(0, (void *) task_id);
+    } else {
+        oft->iov = & nfs_iov;
     }
+    oft->iov->open_f(path, flags, &oft->data, Vfs__callback, (void *) task_id);
 }
 
 void Vfs__closeAsync(
@@ -118,12 +126,22 @@ void Vfs__closeAsync(
     task.private_data = private_data;
     task.oftd = oftd;
     task_id = DynamicArr__add(vfs_s.tasks, &task);
-    // TODO: Call Iov to call the call back
     // call the call back
-    Vfs__callback(0, (void *) task_id);
+    sos_iovec_t iov= Vfs__getIov(oftd);
+    if (iov == NULL) {
+        Vfs__callback(0, (void *) task_id);
+    } else {
+        // call the iov to clean up the struct store in oft 
+        iov->close_f(
+            Vfs__getContextByOftd(oftd), Vfs__callback, (void *) task_id
+        );
+    }
+    
 }
 
-
+/**
+ * Helper functions to decouple the implementations
+ */
 sos_iovec_t Vfs__getIov(int64_t ofd){
     if (ofd == 0) return NULL;
     open_file_t oft= DynamicArr__get(vfs_s.open_file_table, ofd -1 );
