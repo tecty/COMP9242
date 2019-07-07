@@ -5,12 +5,9 @@
 #include <fcntl.h>
 #include <string.h>
 
-#define SOS_NFS_DIR "/var/lib/tftpboot/tecty/"
 #include <aos/sel4_zf_logif.h>
-
-#define NFS_PATH_MAX (1024)
-
-char path_buf[NFS_PATH_MAX];
+#define NFS_IO_MAX (1<<16)
+// #define NFS_IO_MAX (1<<11)
 
 enum DriverNfs_op {
     OPEN, CLOSE, READ, WRITE, STAT
@@ -22,6 +19,9 @@ typedef struct driver_nfs_task {
     driver_nfs_callback_t callback;
     enum DriverNfs_op op;
     void * private_data;
+    // for continue 
+    struct nfsfh * fh;
+    uint64_t index;
 }* driver_nfs_task_t;
 
 
@@ -60,19 +60,6 @@ void DriverNfs__free(){
 }
 
 /**
- * Helper function might need
- */
-void DriverNfs__setPath(char * path){
-    path_buf[0] = '\0';
-    uint32_t root_path_len = strlen(SOS_NFS_DIR);
-    strcat(path_buf, SOS_NFS_DIR);
-    // gracefully fault when the path is overflow
-    // since we only support one layer, 1K is enought
-    strncat(path_buf, path,NFS_PATH_MAX - root_path_len - 1);
-}
-
-
-/**
  * oft operation, iovec things
  */
 
@@ -85,7 +72,7 @@ void DriverNfs__callback(
     driver_nfs_task_t task = DynamicArr__get(nfs_s.tasks, id);
 
     // ZF_LOGE("The NFS task size is %lu", DynamicArr__getAlloced(nfs_s.tasks));
-
+    size_t this_io;
     switch (task->op)
     {
     case OPEN:
@@ -95,13 +82,50 @@ void DriverNfs__callback(
         ZF_LOGE_IF(err< 0, "NFS close fail");
         break;
     case READ:
-        if (err > 0) {
-            // copy out 
-            // ZF_LOGE("Read %d", err);
-            memcpy(task->buf, data, err);
+        if (err < 0) break;
+
+        // ELSE: no error
+        // copy out 
+        // ZF_LOGE("Read %d", err);
+        memcpy(task->buf +task->index , data, err);
+        task->index += err;
+        // return to client if nothing to read, or read till buffer size 
+        if (task->index == task->buf_len || err == 0) break;
+        this_io = 
+            (task->buf_len - task->index) > NFS_IO_MAX ? 
+            NFS_IO_MAX : (task->buf_len - task->index);
+        if (
+            nfs_read_async(
+                nfs_s.nfs_context, task->fh, this_io, DriverNfs__callback, (void *) id
+            ) < 0
+        ){
+            ZF_LOGE("NFS__async call failed");
+            DynamicArr__del(nfs_s.tasks, id);
+        } else {
+            return;
         }
         break;
     case WRITE:
+        if (err < 0) break;
+        task->index += err;
+        if (task->index == task->buf_len) break;
+        this_io = 
+            (task->buf_len - task->index) > NFS_IO_MAX ? 
+            NFS_IO_MAX : (task->buf_len - task->index);
+        // ZF_LOGE("try to continue the write index %lu\tthis_io %lubuf_len %lu\t",task->index, this_io, task->buf_len);
+        if (
+            nfs_write_async(
+                nfs_s.nfs_context, task->fh, this_io,
+                // &(((char *)task->buf)[task->index]), 
+                task->buf + task->index, 
+                DriverNfs__callback, (void *) id
+            ) < 0
+        ){
+            ZF_LOGE("NFS__async call failed");
+            DynamicArr__del(nfs_s.tasks, id);
+        } else {
+            return;
+        }
         break;
     case STAT:
         ;
@@ -120,7 +144,13 @@ void DriverNfs__callback(
         break;
     }
     // return the user's data
-    task->callback(err, task->private_data);
+    if (task->op == WRITE || task->op == READ) {
+        task->callback(task->index, task->private_data);
+    } else
+    {
+        task->callback(err, task->private_data);
+    }
+    
     DynamicArr__del(nfs_s.tasks, id);
 
 }
@@ -195,11 +225,15 @@ void DriverNfs__read(
     dnt.buf_len      = len;
     dnt.callback     = cb;
     dnt.op           = READ;
+    dnt.fh           = context;
+    dnt.index        = 0;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
+
+    size_t this_io = len > NFS_IO_MAX ? NFS_IO_MAX : len;
     if (
         nfs_read_async(
-            nfs_s.nfs_context, (struct nfsfh *) context, len, 
+            nfs_s.nfs_context, (struct nfsfh *) context, this_io, 
             DriverNfs__callback, (void *) id
         ) < 0
     ){
@@ -222,12 +256,14 @@ void DriverNfs__write(
     dnt.callback     = cb;
     dnt.op           = WRITE;
     dnt.private_data = private_data;
+    dnt.fh           = context;
+    dnt.index        = 0;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
     // ZF_LOGE("I want to print something");
-    
+    size_t this_io = len > NFS_IO_MAX ? NFS_IO_MAX: len;
     if (
         nfs_write_async(
-            nfs_s.nfs_context, (struct nfsfh *)context, len, buf, 
+            nfs_s.nfs_context, (struct nfsfh *)context, this_io, buf, 
             DriverNfs__callback, (void *) id
         ) < 0
     ){

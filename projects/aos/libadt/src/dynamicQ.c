@@ -36,7 +36,7 @@ DynamicQ_t DynamicQ__init(uint64_t item_size){
 
 void DynamicQ__enQueue(DynamicQ_t dq,void * data){
     if (dq->alloced == dq-> length - 2){
-        printf("DynamicQ is resizing\n");
+        // printf("DynamicQ is resizing\n");
         // double the size, pre_alloc to improve searching
         dq->length *= 2;
         dq->item_arr      = realloc(dq->item_arr, dq->length* dq->item_size);

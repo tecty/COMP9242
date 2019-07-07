@@ -31,7 +31,7 @@
 /* number of times to run the benchmarks and collect data -
  * for testing purposes you can set this to 1, but for reported
  * results it should be 10 */
-#define ITERATIONS 10
+#define ITERATIONS 100
 
 /* total number of iterations for the benchmark loop */
 #define N_RESULTS (WARMUPS + ITERATIONS)
