@@ -92,27 +92,25 @@ int sos_getdirent(int pos, char *name, size_t nbyte)
 {
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 4);
     /* Set the first word in the message to 0 */
-    strcpy(name, "hello there");
     seL4_SetMR(0, SOS_DIRENT);
     seL4_SetMR(1, pos);
     seL4_SetMR(2, (seL4_Word) name);
     seL4_SetMR(3, nbyte);
     /* Now send the ipc -- call will send the ipc, then block until a reply
     * message is received */
-    printf("I have sent msg %s\n", name);
 
     seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
     
-    printf("\nI will not reach here\n");
     return seL4_GetMR(0);
 }
 
 int sos_stat(const char *path, sos_stat_t *buf)
 {
-    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 2);
+    seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 3);
     /* Set the first word in the message to 0 */
     seL4_SetMR(0, SOS_STAT);
     seL4_SetMR(1, (seL4_Word) path);
+    // printf("The buf have addr %p\n", buf);
     seL4_SetMR(2, (seL4_Word) buf);
     /* Now send the ipc -- call will send the ipc, then block until a reply
     * message is received */

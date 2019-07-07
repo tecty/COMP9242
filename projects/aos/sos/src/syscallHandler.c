@@ -134,12 +134,10 @@ static void __syscall_sys_brk(syscallMessage_t msg){
 }
 
 static void __syscall_stat(syscallMessage_t msg){
-    printf("I have recevie the stat reques\n");
-
     // get the sent word 
     seL4_Word path = msg->words[0];
     seL4_Word buf  = msg->words[1];
-
+    printf("I have got the buf vaddr %p\n", (void *) buf);
     void * sos_buf  = Process__mapOutShareRegion(
         msg->tcb, buf, sizeof(struct sos_stat)
     );
@@ -147,6 +145,8 @@ static void __syscall_stat(syscallMessage_t msg){
     // printf("sos buf at vaddr %p\n", sos_buf);
 
     if (sos_buf == NULL || sos_path == NULL){
+        ZF_LOGE_IF(sos_buf == NULL,"Fail to mapout buffer sos_buf");
+        ZF_LOGE_IF(sos_path == NULL,"Fail to mapout buffer sos_path");
         __syscall_vfs_callback(-1, msg);
     } else {
         VfsFdt__statAsync(sos_path, sos_buf, __syscall_vfs_callback, msg);
@@ -162,9 +162,7 @@ static void __syscall_get_dir_ent(syscallMessage_t msg){
     
     void * sos_buf = Process__mapOutShareRegionForce(msg->tcb, buf, buf_len);
     // printf("DEBUG Entsos buf at vaddr %p\n", sos_buf);
-    printf("I got buf, it have%s\n", (char *) sos_buf);
-
-
+    
     if (sos_buf == NULL){
         __syscall_vfs_callback(-1, msg);
     } else {

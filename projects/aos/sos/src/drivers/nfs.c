@@ -8,8 +8,6 @@
 #define SOS_NFS_DIR "/var/lib/tftpboot/tecty/"
 #include <aos/sel4_zf_logif.h>
 
-// #define NFS_ROOT "/var/lib/tftpboot/tecty"
-#define NFS_ROOT "/"
 #define NFS_PATH_MAX (1024)
 
 char path_buf[NFS_PATH_MAX];
@@ -33,7 +31,6 @@ static struct {
     struct nfsdir * root;
 } nfs_s;
 
-
 // enable this driver;
 void DriverNfs__initCallback(
     int err, UNUSED struct nfs_context * nfs, void * data, UNUSED void* private_data
@@ -44,7 +41,6 @@ void DriverNfs__initCallback(
         return;
     }
     nfs_s.root = (struct nfsdir *) data;
-
     // printf(
     //     "DEBUG: Nfs open root with %s \n", 
     //     nfs_readdir(nfs_s.nfs_context, nfs_s.root)->name
@@ -68,8 +64,8 @@ void DriverNfs__free(){
  */
 void DriverNfs__setPath(char * path){
     path_buf[0] = '\0';
-    uint32_t root_path_len = strlen(NFS_ROOT);
-    strcat(path_buf, NFS_ROOT);
+    uint32_t root_path_len = strlen(SOS_NFS_DIR);
+    strcat(path_buf, SOS_NFS_DIR);
     // gracefully fault when the path is overflow
     // since we only support one layer, 1K is enought
     strncat(path_buf, path,NFS_PATH_MAX - root_path_len - 1);
@@ -144,9 +140,11 @@ void DriverNfs__open(
     
     DriverNfs__setPath(path);
     
-    if (!nfs_open_async(
+    if (
+        nfs_open_async(
             nfs_s.nfs_context, path_buf, flags, DriverNfs__callback, (void *) id
-    )){
+        ) < 0
+    ){
         ZF_LOGE("NFS__async call failed");
         DynamicArr__del(nfs_s.tasks, id);
     }
@@ -168,12 +166,16 @@ void DriverNfs__stat(
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
     
-    DriverNfs__setPath(path);
-    
-    if (!nfs_stat64_async(
-            nfs_s.nfs_context, path_buf, DriverNfs__callback, (void *) id
-    )){
-        ZF_LOGE("NFS__async call failed");
+    if (strcmp(path, "..")==0){
+        path = ".";
+    }
+
+    if (
+        nfs_stat64_async(
+            nfs_s.nfs_context, path, DriverNfs__callback, (void *) id
+        ) < 0
+    ){
+        ZF_LOGE("NFS__async call failed path: %s", path);
         DynamicArr__del(nfs_s.tasks, id);
     }
     
@@ -193,9 +195,11 @@ void DriverNfs__read(
     dnt.callback     = cb;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
-    if (!nfs_read_async(
+    if (
+        nfs_read_async(
             nfs_s.nfs_context, (struct nfsfh *) context, len, 
-            DriverNfs__callback, (void *) id)
+            DriverNfs__callback, (void *) id
+        ) < 0
     ){
         ZF_LOGE("NFS__async call failed");
         DynamicArr__del(nfs_s.tasks, id);
@@ -216,10 +220,12 @@ void DriverNfs__write(
     dnt.callback     = cb;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
-    if (!nfs_write_async(
+    if (
+        nfs_write_async(
             nfs_s.nfs_context, (struct nfsfh *)context, len, buf, 
             DriverNfs__callback, (void *) id
-    )){
+        ) < 0
+    ){
         ZF_LOGE("NFS__async call failed");
         DynamicArr__del(nfs_s.tasks, id);
     }
@@ -236,10 +242,12 @@ void DriverNfs__close(
     dnt.callback     = cb;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
-    if (!nfs_close_async(
+    if (
+        nfs_close_async(
             nfs_s.nfs_context, (struct nfsfh *)context, 
             DriverNfs__callback, (void *) id
-    )){
+        ) < 0
+    ){
         ZF_LOGE("NFS__async call failed");
         DynamicArr__del(nfs_s.tasks, id);
     }
@@ -252,34 +260,23 @@ void DriverNfs__getDirEntry(
     UNUSED void * context, size_t loc, void * buf, size_t buf_len,
     driver_nfs_callback_t cb, void * private_data
 ){
-    nfs_seekdir(nfs_s.nfs_context, nfs_s.root,loc);
-    struct nfsdirent* entry = nfs_readdir(nfs_s.nfs_context, nfs_s.root);
+    // nfs_seekdir(nfs_s.nfs_context, nfs_s.root, 0);
     nfs_rewinddir(nfs_s.nfs_context, nfs_s.root);
+
+    struct nfsdirent* entry;
+    for (size_t i = 0; i <= loc; i++)
+    {
+        // I don't know why the seekdir wont push the curr forward
+        entry = nfs_readdir(nfs_s.nfs_context, nfs_s.root);
+    }
+    
 
     int ret;
     if (entry) {
-        // TODO: BUG
-        printf("buf before  to %s\n", (char *) buf);
-        printf("I got buflen is %lu\n", buf_len);
-        printf("I got entry name is %s\n", entry->name);
-        // strncpy(buf, (const char *)entry->name, buf_len);
-        char * char_buf = buf;
-        size_t i;
-        for (i = 0; i < buf_len && entry->name[i]!= '\0'; i++)
-        {
-            char_buf[i] = entry->name[i];
-        }
-        for (; i < buf_len; i++)
-        {
-            /* code */
-            char_buf[i] = '\0';
-        }
-        
-        
-        printf("buf now is write to %s\n", (char *) buf);
-        ret = 0;
-    } else {
+        strncpy(buf, (const char *)entry->name, buf_len);
         ret = 1;
+    } else {
+        ret = 0;
     }
     
     //  call the callback directly 

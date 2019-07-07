@@ -232,7 +232,7 @@ void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word siz
     proc->shareRegion->crrt =
         ContinueRegion__requestRegion(process_s.contRegion, size);
 
-    ZF_LOGE("I have mapped in %lu pages\n", size);
+    // ZF_LOGE("I have mapped in %lu pages", size);
     seL4_Word vaddr_aligned = Process__vaddr4kAlign(vaddr);
 
     for (size_t i = 0; i < size; i++)
@@ -302,7 +302,7 @@ void * Process__mapOutShareRegionForce(sos_pcb_t proc, seL4_Word vaddr, seL4_Wor
         if (
             AddressSpace__isInAdddrSpace(proc->addressSpace, this_vaddr)==0 && AddressSpace__tryResize(proc->addressSpace, STACK, this_vaddr) == false
         ){
-            ZF_LOGE("Client give a invalid address\n");
+            ZF_LOGE("Client give a invalid address %p\n", (void *) vaddr);
             return NULL;
         }
 
