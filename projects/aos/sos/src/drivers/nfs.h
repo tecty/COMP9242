@@ -3,8 +3,11 @@
 
 #include <stdint.h>
 #include "pico_bsd_sockets.h"
+#undef PACKED
+#include <nfsc/libnfs.h>
 
-void DriverNfs__init();
+
+void DriverNfs__init(struct nfs_context * context);
 void DriverNfs__free();
 
 // @ret[err]: errno

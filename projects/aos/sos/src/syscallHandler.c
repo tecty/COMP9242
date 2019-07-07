@@ -16,11 +16,13 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
 
 
 void __syscall_vfs_callback(int64_t len, void * data){
-    // printf("Debug: vfs try to callback with %ld\n", len);
+    printf("Debug: vfs try to callback with %ld\n", len);
+    printf("callback has been sent %ld\n", len);
     syscallMessage_t msg = (syscallMessage_t) data;
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
     seL4_SetMR(0, len);
     seL4_Send(msg->replyCap, reply_msg);
+
     // finish it by calling a callback 
     syscallEvents__finish(msg);
     Process__unmapShareRegion(msg->tcb);
@@ -132,6 +134,8 @@ static void __syscall_sys_brk(syscallMessage_t msg){
 }
 
 static void __syscall_stat(syscallMessage_t msg){
+    printf("I have recevie the stat reques\n");
+
     // get the sent word 
     seL4_Word path = msg->words[0];
     seL4_Word buf  = msg->words[1];
@@ -156,8 +160,10 @@ static void __syscall_get_dir_ent(syscallMessage_t msg){
     size_t buf_len = msg->words[2];
 
     
-    void * sos_buf = Process__mapOutShareRegion(msg->tcb, buf, buf_len);
+    void * sos_buf = Process__mapOutShareRegionForce(msg->tcb, buf, buf_len);
     // printf("DEBUG Entsos buf at vaddr %p\n", sos_buf);
+    printf("I got buf, it have%s\n", (char *) sos_buf);
+
 
     if (sos_buf == NULL){
         __syscall_vfs_callback(-1, msg);

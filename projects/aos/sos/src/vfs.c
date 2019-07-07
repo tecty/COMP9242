@@ -5,6 +5,7 @@
 #include "drivers/devnull.h"
 #include <stdio.h>
 
+#include <aos/sel4_zf_logif.h>
 
 
 static struct sos_iovec serial_iov = 
@@ -79,7 +80,7 @@ void Vfs__close(uint64_t ofd){
  * Async transaction of open and close
  */
 void Vfs__callback(int64_t err, void * private_data){
-    printf("I want to return %ld\n", err );
+    ZF_LOGI("I want to return %ld", err );
     vfs_task_t task = DynamicArr__get(vfs_s.tasks, (size_t) private_data);
     if (
         (err < 0 && task->type == OPEN) ||
@@ -91,8 +92,12 @@ void Vfs__callback(int64_t err, void * private_data){
         // I should return the oftd to fdt
         err = task->oftd;
     } 
+    ZF_LOGI("I try to call the callback %ld", err );
     task->cb(err, task->private_data);
+    ZF_LOGI("I called the callback %ld", err );
     DynamicArr__del(vfs_s.tasks, (size_t) private_data);
+    ZF_LOGI("I cleaned up " );
+
 }
 
 

@@ -26,4 +26,3 @@
  */
 void network_init(cspace_t *cspace, void *timer_vaddr);
 
-struct nfs_context * get_nfs_context();

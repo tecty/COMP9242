@@ -1,12 +1,10 @@
 #include "nfs.h"
 #include "../network.h"
-#include <nfsc/libnfs.h>
 #include <adt/dynamic.h>
 #include "sos_stat.h"
 #include <fcntl.h>
 #include <string.h>
 
-#undef PACKED
 #define SOS_NFS_DIR "/var/lib/tftpboot/tecty/"
 #include <aos/sel4_zf_logif.h>
 
@@ -40,27 +38,23 @@ static struct {
 void DriverNfs__initCallback(
     int err, UNUSED struct nfs_context * nfs, void * data, UNUSED void* private_data
 ){
-    printf("DEBUG:Init has been called back\n");
+    // printf("DEBUG:Init has been called back\n");
     if (err < 0){
         ZF_LOGE("Open root directory fault :%s", (char *) data);
         return;
     }
     nfs_s.root = (struct nfsdir *) data;
-    
 
-    printf(
-        "\n\nDEBUG: Nfs open root with %s \n", 
-        nfs_readdir(nfs_s.nfs_context, nfs_s.root)->name
-    );
+    // printf(
+    //     "DEBUG: Nfs open root with %s \n", 
+    //     nfs_readdir(nfs_s.nfs_context, nfs_s.root)->name
+    // );
 }
 
-void DriverNfs__init(){
+void DriverNfs__init(struct nfs_context * context){
     // nfs_s.nfs_context = nfs_init_context();
-    nfs_s.nfs_context = get_nfs_context();
+    nfs_s.nfs_context = context;
     nfs_opendir_async(nfs_s.nfs_context, "/", DriverNfs__initCallback, NULL);
-
-    printf("DEBUG: NFS try to init itself %p\n",nfs_s.nfs_context);
-    printf("I want to mount to %s\n", SOS_NFS_DIR);
     nfs_s.tasks = DynamicArr__init(sizeof(struct driver_nfs_task));
 }
 void DriverNfs__free(){
@@ -258,15 +252,31 @@ void DriverNfs__getDirEntry(
     UNUSED void * context, size_t loc, void * buf, size_t buf_len,
     driver_nfs_callback_t cb, void * private_data
 ){
-    printf("DEBUG: I am seeking the dir\n");
     nfs_seekdir(nfs_s.nfs_context, nfs_s.root,loc);
     struct nfsdirent* entry = nfs_readdir(nfs_s.nfs_context, nfs_s.root);
-    printf("I got dir %s\n", entry->name );
     nfs_rewinddir(nfs_s.nfs_context, nfs_s.root);
 
     int ret;
     if (entry) {
-        strncpy(buf, entry->name, buf_len);
+        // TODO: BUG
+        printf("buf before  to %s\n", (char *) buf);
+        printf("I got buflen is %lu\n", buf_len);
+        printf("I got entry name is %s\n", entry->name);
+        // strncpy(buf, (const char *)entry->name, buf_len);
+        char * char_buf = buf;
+        size_t i;
+        for (i = 0; i < buf_len && entry->name[i]!= '\0'; i++)
+        {
+            char_buf[i] = entry->name[i];
+        }
+        for (; i < buf_len; i++)
+        {
+            /* code */
+            char_buf[i] = '\0';
+        }
+        
+        
+        printf("buf now is write to %s\n", (char *) buf);
         ret = 0;
     } else {
         ret = 1;

@@ -232,13 +232,14 @@ void * Process__mapOutShareRegion(sos_pcb_t proc, seL4_Word vaddr, seL4_Word siz
     proc->shareRegion->crrt =
         ContinueRegion__requestRegion(process_s.contRegion, size);
 
+    ZF_LOGE("I have mapped in %lu pages\n", size);
     seL4_Word vaddr_aligned = Process__vaddr4kAlign(vaddr);
 
     for (size_t i = 0; i < size; i++)
     {
         if (
             Process__mapOut(
-                proc, vaddr_aligned,
+                proc, vaddr_aligned+(PAGE_SIZE_4K * i),
                 (seL4_Word)Process__getShareRegionStart(proc) +(PAGE_SIZE_4K * i), 
                 proc->shareRegion->capList
             )!= seL4_NoError
@@ -258,7 +259,9 @@ void * Process__mapOutShareRegion2(
     sos_pcb_t proc, seL4_Word vaddr, seL4_Word size
 ){
     // protect share region is always one
-    if (proc->shareRegion2 != NULL) Process__unmapShareRegion(proc);
+    if (proc->shareRegion2 != NULL && proc->shareRegion != NULL) {
+        Process__unmapShareRegion(proc);
+    }
     proc->shareRegion2 = MappedRegion__init();
     size = Process__size4kAlign(vaddr,size);
     // how much page need to map 
@@ -272,7 +275,7 @@ void * Process__mapOutShareRegion2(
     {
         if (
             Process__mapOut(
-                proc, vaddr_aligned,
+                proc, vaddr_aligned+(PAGE_SIZE_4K * i),
                 (seL4_Word)Process__getShareRegion2Start(proc) +(PAGE_SIZE_4K * i), 
                 proc->shareRegion2->capList
             )!= seL4_NoError

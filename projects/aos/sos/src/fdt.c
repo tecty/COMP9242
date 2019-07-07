@@ -1,5 +1,6 @@
 #include "vfs.h"
 #include <stdio.h>
+#include <aos/sel4_zf_logif.h>
 
 FDT_t VfsFdt__init(){
     FDT_t fdt = DynamicArr__init(sizeof(uint64_t));
@@ -50,7 +51,7 @@ void * VfsFdt__getContextByFd(FDT_t fdt, uint64_t fd){
 
 
 void VfsFdt__callback(int64_t err, void * private_data){
-
+    ZF_LOGI("I have been callbacked");
     fdt_task_t task = DynamicArr__get(
         Vfs__getFdtTaskArr(), (size_t) private_data
     );
