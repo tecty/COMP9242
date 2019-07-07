@@ -51,10 +51,14 @@ void * VfsFdt__getContextByFd(FDT_t fdt, uint64_t fd){
 
 
 void VfsFdt__callback(int64_t err, void * private_data){
-    ZF_LOGI("I have been callbacked");
+    // ZF_LOGI("I have been callbacked");
     fdt_task_t task = DynamicArr__get(
         Vfs__getFdtTaskArr(), (size_t) private_data
     );
+    // ZF_LOGE(
+    //     "The fdt task size %lu",
+    //     DynamicArr__getAlloced(Vfs__getFdtTaskArr())
+    // );
 
     switch (task->type)
     {

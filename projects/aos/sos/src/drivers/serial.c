@@ -60,7 +60,7 @@ void DriverSerial__write(
     UNUSED void * context, void * buf, uint64_t len, vfs_callback_t cb,
     void * private_data
 ){
-    // printf("I want to write %s\n", (char *) buf);
+    // printf("I want to write %lu\t %s\n", len,(char *) buf);
     cb(
         serial_send(serial_s.serial_ptr, (char *) buf, len), private_data
     );

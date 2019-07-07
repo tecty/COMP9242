@@ -16,8 +16,8 @@ void unimplemented_syscall(UNUSED syscallMessage_t msg){
 
 
 void __syscall_vfs_callback(int64_t len, void * data){
-    printf("Debug: vfs try to callback with %ld\n", len);
-    printf("callback has been sent %ld\n", len);
+    // printf("Debug: vfs try to callback with %ld\n", len);
+    // printf("callback has been sent %ld\n", len);
     syscallMessage_t msg = (syscallMessage_t) data;
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0,0,0,1);
     seL4_SetMR(0, len);
@@ -178,7 +178,7 @@ void syscallHandler__init(cspace_t *cspace){
         // clearup the handles space 
         handles[i] = unimplemented_syscall;
     }
-    
+
     /* Register implemented syscalls here */
     handles[SOS_WRITE]     = __syscall_write;
     handles[SOS_OPEN]      = __syscall_open;
@@ -193,6 +193,8 @@ void syscallHandler__init(cspace_t *cspace){
 }
 
 void syscallHandler__handle(uint64_t syscall_num, syscallMessage_t msg){
+    // printf("I have receive a syscall %ld\n", syscall_num );
+
     handles[syscall_num](msg);
 
     if(handles[syscall_num] == unimplemented_syscall){

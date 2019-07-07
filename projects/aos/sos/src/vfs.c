@@ -80,6 +80,12 @@ void Vfs__close(uint64_t ofd){
  * Async transaction of open and close
  */
 void Vfs__callback(int64_t err, void * private_data){
+    // ZF_LOGE(
+    //     "The vfs task size %lu, oft %lu",
+    //     DynamicArr__getAlloced(vfs_s.tasks),
+    //     DynamicArr__getAlloced(vfs_s.open_file_table)
+    // );
+
     vfs_task_t task = DynamicArr__get(vfs_s.tasks, (size_t) private_data);
     if (
         (err < 0 && task->type == OPEN) ||
@@ -167,7 +173,7 @@ void VfsFdt__getDirEntryAsync(
     task.type = GETDIRENT;
     task.private_data = private_data;
     task_id = DynamicArr__add(vfs_s.tasks, &task);
-    printf("DEBUG: Entry try to call the nfs driver \n");
+    // printf("DEBUG: Entry try to call the nfs driver \n");
     // call the iov to clean up the struct store in oft 
     DriverNfs__getDirEntry(
         NULL,loc, buf, buf_len, Vfs__callback, (void *) task_id

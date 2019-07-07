@@ -84,6 +84,8 @@ void DriverNfs__callback(
     size_t id = (size_t) private_data;
     driver_nfs_task_t task = DynamicArr__get(nfs_s.tasks, id);
 
+    // ZF_LOGE("The NFS task size is %lu", DynamicArr__getAlloced(nfs_s.tasks));
+
     switch (task->op)
     {
     case OPEN:
@@ -95,6 +97,7 @@ void DriverNfs__callback(
     case READ:
         if (err > 0) {
             // copy out 
+            // ZF_LOGE("Read %d", err);
             memcpy(task->buf, data, err);
         }
         break;
@@ -138,11 +141,9 @@ void DriverNfs__open(
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
     
-    DriverNfs__setPath(path);
-    
     if (
         nfs_open_async(
-            nfs_s.nfs_context, path_buf, flags, DriverNfs__callback, (void *) id
+            nfs_s.nfs_context, path, flags, DriverNfs__callback, (void *) id
         ) < 0
     ){
         ZF_LOGE("NFS__async call failed");
@@ -193,6 +194,7 @@ void DriverNfs__read(
     dnt.buf          = buf;
     dnt.buf_len      = len;
     dnt.callback     = cb;
+    dnt.op           = READ;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
     if (
@@ -218,8 +220,11 @@ void DriverNfs__write(
     dnt.buf          = buf;
     dnt.buf_len      = len;
     dnt.callback     = cb;
+    dnt.op           = WRITE;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
+    // ZF_LOGE("I want to print something");
+    
     if (
         nfs_write_async(
             nfs_s.nfs_context, (struct nfsfh *)context, len, buf, 
@@ -240,6 +245,7 @@ void DriverNfs__close(
 ){
     struct driver_nfs_task dnt;
     dnt.callback     = cb;
+    dnt.op           = CLOSE;
     dnt.private_data = private_data;
     size_t id = DynamicArr__add(nfs_s.tasks, & dnt);
     if (

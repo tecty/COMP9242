@@ -38,6 +38,8 @@ DynamicArr_t DynamicArr__init(size_t item_size){
 
 void * Dynamic__alloc(DynamicArr_t da, size_t * id){
     if (da->alloced == da-> length - 2){
+        // printf("Dynamic Arr is resizing\n");
+
         // double the size, pre_alloc to improve searching
         da->length *= 2;
         da->item_occupied = realloc(da->item_occupied, da->length * sizeof(bool));
@@ -92,6 +94,10 @@ void DynamicArr__del(DynamicArr_t da, size_t index){
         da->alloced --;
     } 
     // printf("%lu/%lu deleted %lu\n", da->alloced, da->length , index);
+}
+
+size_t DynamicArr__getAlloced(DynamicArr_t da){
+    return da->alloced;
 }
 
 void DynamicArr__free(DynamicArr_t da){

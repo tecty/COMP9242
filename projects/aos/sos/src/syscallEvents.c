@@ -46,6 +46,9 @@ static inline syscallEvent_t syscallEvents__first(){
 }
 
 void syscallEvents__deQueue(){
+    // ZF_LOGE(
+    //     "The syscall Q is size %lu", DynamicQ__getAlloced(sysEvent.messageQ)
+    // );
     // for safety, delete later
     if (syscallEvents__isEmpty()) return;
     // pop and call the handlers

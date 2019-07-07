@@ -16,6 +16,7 @@ void DynamicQ__enQueue(DynamicQ_t dq,void * data);
 bool DynamicQ__isEmpty(DynamicQ_t dq);
 void * DynamicQ__first(DynamicQ_t dq);
 void DynamicQ__deQueue(DynamicQ_t dq);
+size_t DynamicQ__getAlloced(DynamicQ_t dq);
 void DynamicQ__free(DynamicQ_t dq);
 void DynamicQ__forAll(DynamicQ_t dq, dynamicQ_callback_t callback);
 #endif // DYNAMIC_Q

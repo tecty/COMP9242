@@ -139,7 +139,7 @@ static int run_benchmark(char *name, benchmark_fn_t fn, uint32_t overhead,
     READ_PMCR(pmcr);
 
     /* open the file */
-    int fd = open_helper(BENCHMARK_FILE, O_RDWR);
+    int fd = open_helper(BENCHMARK_FILE, O_RDWR|O_CREAT);
     if (fd == -1) {
         return -1;
     }
@@ -244,7 +244,7 @@ int sos_benchmark(int debug_mode)
 
 
     /* create benchmark results file */
-    int results_fd = open_helper(BENCHMARK_RESULTS_FILE, O_WRONLY);
+    int results_fd = open_helper(BENCHMARK_RESULTS_FILE, O_WRONLY|O_CREAT);
     if (results_fd == -1) {
         return -1;
     }
