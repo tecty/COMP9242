@@ -31,7 +31,7 @@
 /* number of times to run the benchmarks and collect data -
  * for testing purposes you can set this to 1, but for reported
  * results it should be 10 */
-#define ITERATIONS 100
+#define ITERATIONS 10
 
 /* total number of iterations for the benchmark loop */
 #define N_RESULTS (WARMUPS + ITERATIONS)
@@ -139,7 +139,7 @@ static int run_benchmark(char *name, benchmark_fn_t fn, uint32_t overhead,
     READ_PMCR(pmcr);
 
     /* open the file */
-    int fd = open_helper(BENCHMARK_FILE, O_RDWR|O_CREAT);
+    int fd = open_helper(BENCHMARK_FILE, O_RDWR);
     if (fd == -1) {
         return -1;
     }
@@ -244,7 +244,7 @@ int sos_benchmark(int debug_mode)
 
 
     /* create benchmark results file */
-    int results_fd = open_helper(BENCHMARK_RESULTS_FILE, O_WRONLY|O_CREAT);
+    int results_fd = open_helper(BENCHMARK_RESULTS_FILE, O_WRONLY);
     if (results_fd == -1) {
         return -1;
     }

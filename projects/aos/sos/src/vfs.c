@@ -4,6 +4,7 @@
 #include "drivers/nfs.h"
 #include "drivers/devnull.h"
 #include <stdio.h>
+#include <fcntl.h>
 
 #include <aos/sel4_zf_logif.h>
 
@@ -65,7 +66,7 @@ int64_t Vfs__open(char * path, uint64_t mode){
     if (strcmp(path, "console") == 0){
         struct open_file of;
         of.iov = &serial_iov;
-        of.mode =mode;
+        of.mode =mode|O_CREAT;
         return DynamicArr__add(vfs_s.open_file_table, &of) + 1 ;
     }
     return 0;
@@ -115,6 +116,8 @@ void Vfs__openAsync(
     // oftd should increment 1
     task.oftd ++; 
 
+    // we always create a new file 
+    flags |= O_CREAT;
     task_id = DynamicArr__add(vfs_s.tasks, &task);
     oft->mode = flags;
     // call the async open 
@@ -146,6 +149,13 @@ void Vfs__closeAsync(
             Vfs__getContextByOftd(oftd), Vfs__callback, (void *) task_id
         );
     }
+}
+
+uint16_t Vfs__getModeByOftd(uint64_t oftd){
+    open_file_t openfile =  DynamicArr__get(vfs_s.open_file_table, oftd -1);
+    // no access for anything
+    if (openfile == NULL) return 0;
+    return openfile->mode;
 }
 
 void VfsFdt__statAsync(

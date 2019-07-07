@@ -1,6 +1,7 @@
 #include "vfs.h"
 #include <stdio.h>
 #include <aos/sel4_zf_logif.h>
+#include <fcntl.h>
 
 FDT_t VfsFdt__init(){
     FDT_t fdt = DynamicArr__init(sizeof(uint64_t));
@@ -13,6 +14,12 @@ FDT_t VfsFdt__init(){
 int64_t VfsFdt__getOftd(FDT_t fdt, uint64_t fd){
     // printf("search %lu, I got %p \n ", fd, DynamicArr__get(fdt, fd));
     return * (int64_t *) DynamicArr__get(fdt, fd);
+}
+
+uint16_t VfsFdt__getModeByFd(FDT_t fdt, uint64_t fd){
+    uint64_t oftd = VfsFdt__getOftd(fdt, fd);
+    // printf("I have got the oftd %lu\n",oftd);
+    return Vfs__getModeByOftd(oftd);
 }
 
 
@@ -129,8 +136,9 @@ void VfsFdt__readAsync(
     FDT_t fdt, uint64_t fd, void * buf, uint64_t len, vfs_callback_t cb,
     void * private_data
 ){
+    
     sos_iovec_t iov= VfsFdt__getIovByFd(fdt, fd);
-    if (iov == NULL){
+    if (iov == NULL|| (VfsFdt__getModeByFd(fdt, fd) & O_ACCMODE) == O_WRONLY ){
         // I couln't call the iov, since there's none
         cb(-1, private_data);
     }
@@ -153,8 +161,9 @@ void VfsFdt__writeAsync(
     void * private_data
 ){
     sos_iovec_t iov= VfsFdt__getIovByFd(fdt, fd);
-    if (iov == NULL){
+    if (iov == NULL || (VfsFdt__getModeByFd(fdt, fd) & O_ACCMODE) == O_RDONLY ){
         // I couln't call the iov, since there's none
+        // or there's no permission to do so 
         cb(-1, private_data);
     }
     // construct the task and consumed by unified callback

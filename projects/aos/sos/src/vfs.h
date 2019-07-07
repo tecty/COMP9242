@@ -90,7 +90,7 @@ typedef struct sos_iovec
 typedef struct open_file
 {
     sos_iovec_t iov;
-    uint64_t mode;
+    uint16_t mode;
     void * data;
 } * open_file_t;
 
@@ -112,6 +112,7 @@ typedef struct fdt_task
 sos_iovec_t Vfs__getIov(int64_t ofd);
 DynamicArr_t Vfs__getFdtTaskArr();
 void * Vfs__getContextByOftd(uint64_t oftd);
+uint16_t Vfs__getModeByOftd(uint64_t oftd);
 
 
 #endif // VFS_H

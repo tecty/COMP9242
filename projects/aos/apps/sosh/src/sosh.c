@@ -145,15 +145,15 @@ static int cat(int argc, char **argv)
     fd = open(argv[1], O_RDONLY);
     stdout_fd = open("console", O_WRONLY);
     
-    printf("\nOpen File on %d\n", fd);
-    printf("\nOpen console on %d\n", stdout_fd);
+    // printf("\nOpen File on %d\n", fd);
+    // printf("\nOpen console on %d\n", stdout_fd);
     write(stdout_fd, "I try to write something to stdout\n",36);
 
     assert(fd >= 0);
 
     while ((num_read = read(fd, buf, BUF_SIZ)) > 0) {
-        num_written = write(stdout_fd, buf, num_read > 50 ? 50: num_read);
-        printf("I have write %d to stdout\n", num_written);
+        num_written = write(stdout_fd, buf, num_read);
+        // printf("I have write %d to stdout\n", num_written);
     }
 
     close(stdout_fd);
@@ -182,7 +182,7 @@ static int cp(int argc, char **argv)
     file2 = argv[2];
 
     fd = open(file1, O_RDONLY);
-    fd_out = open(file2, O_WRONLY | O_CREAT);
+    fd_out = open(file2, O_WRONLY );
 
     assert(fd >= 0);
 

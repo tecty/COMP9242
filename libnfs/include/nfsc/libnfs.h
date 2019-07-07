@@ -504,7 +504,6 @@ EXTERN int nfs_fstat64_async(struct nfs_context *nfs, struct nfsfh *nfsfh,
  */
 EXTERN int nfs_fstat64(struct nfs_context *nfs, struct nfsfh *nfsfh,
                        struct nfs_stat_64 *st);
-
 /*
  * UMASK() never blocks, so no special aync/async versions are available
  */

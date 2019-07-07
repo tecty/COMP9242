@@ -90,7 +90,11 @@ int serial_send(struct serial *serial, char *data, int len)
     assert(serial->pico_socket != NULL);
     int total_sent = 0;
     while (total_sent < len) {
-        int sent = pico_socket_sendto(serial->pico_socket, data, len, &serial->peer, serial->port);
+        int sent = pico_socket_sendto(
+            serial->pico_socket, data,
+            len > MAX_PAYLOAD_SIZE ? MAX_PAYLOAD_SIZE : len, 
+            &serial->peer, serial->port
+        );
         if (sent == -1) {
             ZF_LOGE("Pico send failed");
             return -1;

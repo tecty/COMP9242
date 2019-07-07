@@ -6,8 +6,7 @@
 #include <string.h>
 
 #include <aos/sel4_zf_logif.h>
-#define NFS_IO_MAX (1<<16)
-// #define NFS_IO_MAX (1<<11)
+#define NFS_IO_MAX (1<<17)
 
 enum DriverNfs_op {
     OPEN, CLOSE, READ, WRITE, STAT

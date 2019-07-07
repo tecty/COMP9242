@@ -137,7 +137,7 @@ static void __syscall_stat(syscallMessage_t msg){
     // get the sent word 
     seL4_Word path = msg->words[0];
     seL4_Word buf  = msg->words[1];
-    printf("I have got the buf vaddr %p\n", (void *) buf);
+    // printf("I have got the buf vaddr %p\n", (void *) buf);
     void * sos_buf  = Process__mapOutShareRegion(
         msg->tcb, buf, sizeof(struct sos_stat)
     );
