@@ -8,7 +8,7 @@
 
 typedef struct DynamicArr_s * DynamicArr_t ;
 DynamicArr_t DynamicArr__init(size_t item_size);
-void * Dynamic__alloc(DynamicArr_t da, size_t * id);
+void * DynamicArr__alloc(DynamicArr_t da, size_t * id);
 size_t DynamicArr__add(DynamicArr_t da,void * data);
 void * DynamicArr__get(DynamicArr_t da, size_t index);
 void DynamicArr__del(DynamicArr_t da, size_t index);

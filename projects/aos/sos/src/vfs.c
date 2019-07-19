@@ -112,7 +112,7 @@ void Vfs__openAsync(
     task.cb = cb;
     task.type = OPEN;
     task.private_data = private_data;
-    open_file_t oft = Dynamic__alloc(vfs_s.open_file_table, &(task.oftd));
+    open_file_t oft = DynamicArr__alloc(vfs_s.open_file_table, &(task.oftd));
     // oftd should increment 1
     task.oftd ++; 
 

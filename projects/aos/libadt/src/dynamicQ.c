@@ -92,7 +92,7 @@ void DynamicQ__free(DynamicQ_t dq){
     free(dq);
 }
 
-void DynamicQ__forAll(DynamicQ_t dq, dynamicQ_callback_t callback){
+void DynamicQ__foreach(DynamicQ_t dq, dynamicQ_callback_t callback){
     void * data;
     while ((data = DynamicQ__first(dq)) && data != NULL){
         callback(data);

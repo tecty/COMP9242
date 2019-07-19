@@ -36,7 +36,7 @@ DynamicArr_t DynamicArr__init(size_t item_size){
     return ret;
 }
 
-void * Dynamic__alloc(DynamicArr_t da, size_t * id){
+void * DynamicArr__alloc(DynamicArr_t da, size_t * id){
     if (da->alloced == da-> length - 2){
         // printf("Dynamic Arr is resizing\n");
 
@@ -75,7 +75,7 @@ void * Dynamic__alloc(DynamicArr_t da, size_t * id){
 size_t DynamicArr__add(DynamicArr_t da,void * data){
     size_t id;
     // store the new item here 
-    memcpy (Dynamic__alloc(da, &id), data, da->item_size);
+    memcpy (DynamicArr__alloc(da, &id), data, da->item_size);
     // some routine to maintain the data intergity
     return id;
 }

@@ -71,7 +71,7 @@ void MappedRegion__unmapCapCallback( void * data){
 }
 
 void MappedRegion__free(sos_mapped_region_t mgt){
-    DynamicQ__forAll(mgt->capList, MappedRegion__unmapCapCallback);
+    DynamicQ__foreach(mgt->capList, MappedRegion__unmapCapCallback);
     DynamicQ__free(mgt->capList);
     ContinueRegion__release(process_s.contRegion, mgt->crrt);
     free(mgt);
